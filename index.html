@@ -16,15 +16,22 @@
 <body>
 
     <div class="header-cup center-align">
+        <div class="live-indicator">
+            <span class="pulse"></span> LIVE MATCH
+        </div>
         <h1 class="main-title">LPA <span class="digital-tag">PRO</span></h1>
         <div class="scoreboard">
-            <div class="score-box"><span class="score-number" id="scoreA">0</span></div>
+            <div class="score-box">
+                <span class="score-number" id="scoreA">0</span>
+            </div>
             <div class="chrono-container" id="chronoDisplay">00:00</div>
-            <div class="score-box"><span class="score-number" id="scoreB">0</span></div>
+            <div class="score-box">
+                <span class="score-number" id="scoreB">0</span>
+            </div>
         </div>
-        <div class="admin-controls">
-            <button onclick="toggleChrono()" class="btn-small green"><i class="fa fa-play"></i></button>
-            <button onclick="resetChrono()" class="btn-small grey"><i class="fa fa-undo"></i></button>
+        <div class="admin-controls" style="margin-top: 15px;">
+            <button onclick="toggleChrono()" class="btn-floating btn-small waves-effect waves-light green"><i class="fa fa-play"></i></button>
+            <button onclick="resetChrono()" class="btn-floating btn-small waves-effect waves-light grey"><i class="fa fa-undo"></i></button>
         </div>
     </div>
 
@@ -86,12 +93,13 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script>
         // --- CONFIGURATION ---
         const SUPABASE_URL = 'https://gamyqxfkmqdubrbvzxul.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_4lUnrZT8akVxsr3PDnOCAA_gmam4b_X';
         
-        // Utilisation de supabaseClient pour éviter le conflit avec l'objet global 'supabase'
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // --- VARIABLES GLOBALES ---
@@ -205,6 +213,10 @@
 
                 let icon = "fa-futbol";
                 let actionText = "a marqué un BUT !";
+                if (col === 'buts') {
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                    Swal.fire({ title: 'BUT !!!', text: `${name} a marqué !`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+                }
                 if (col === 'jaunes') { icon = "fa-square yellow-text"; actionText = "a reçu un carton JAUNE"; }
                 if (col === 'rouges') { icon = "fa-square red-text"; actionText = "a reçu un carton ROUGE"; }
 
@@ -257,9 +269,9 @@
 
             const { error } = await supabaseClient.from('joueurs').insert([player]);
             if (error) {
-                alert("Erreur lors de l'inscription : " + error.message);
+                Swal.fire('Erreur', error.message, 'error');
             } else {
-                alert("Joueur inscrit avec succès !");
+                Swal.fire('Succès', 'Joueur inscrit avec succès !', 'success');
                 e.target.reset();
                 showView('view-lineup');
                 logEvent(player.nom_prenom, "a rejoint l'équipe", "fa-user-plus");
