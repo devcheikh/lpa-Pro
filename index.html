@@ -19,6 +19,11 @@
         <div class="live-indicator">
             <span class="pulse"></span> LIVE MATCH
         </div>
+        <div class="row match-display" style="margin-bottom: 0;">
+            <div class="col s5 right-align team-name-display" id="displayNameA">ÉQUIPE A</div>
+            <div class="col s2 center-align">VS</div>
+            <div class="col s5 left-align team-name-display" id="displayNameB">ÉQUIPE B</div>
+        </div>
         <h1 class="main-title">LPA <span class="digital-tag">PRO</span></h1>
         <div class="scoreboard">
             <div class="score-box">
@@ -74,13 +79,28 @@
 
         <!-- VUE ADMIN (GRID) -->
         <div id="view-admin" class="player-management" style="display: none;">
+            <div class="match-setup-box">
+                <h6><i class="fa fa-cog"></i> CONFIGURATION DU MATCH</h6>
+                <div class="row">
+                    <div class="col s6">
+                        <select id="selectTeamA" class="browser-default" onchange="updateMatchConfig()">
+                            <option value="">Choisir Équipe A</option>
+                        </select>
+                    </div>
+                    <div class="col s6">
+                        <select id="selectTeamB" class="browser-default" onchange="updateMatchConfig()">
+                            <option value="">Choisir Équipe B</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div class="row">
                 <div class="col s6 team-column">
-                    <h6 class="team-a-title center-align">ADMIN ÉQUIPE A</h6>
+                    <h6 class="team-a-title center-align team-name-a">ÉQUIPE A</h6>
                     <div id="admin-teamA" class="admin-grid"></div>
                 </div>
                 <div class="col s6 team-column">
-                    <h6 class="team-b-title center-align">ADMIN ÉQUIPE B</h6>
+                    <h6 class="team-b-title center-align team-name-b">ÉQUIPE B</h6>
                     <div id="admin-teamB" class="admin-grid"></div>
                 </div>
             </div>
@@ -91,7 +111,7 @@
             <h5 class="center-align"><i class="fa fa-users"></i> COMPOSITION DES ÉQUIPES</h5>
             <div class="row">
                 <div class="col s6 team-column" id="teamA-list">
-                    <h6 class="center-align team-a-title">ÉQUIPE A</h6>
+                    <h6 class="center-align team-a-title team-name-a">ÉQUIPE A</h6>
                     <div class="lineup-section">
                         <small>TITULAIRES</small>
                         <div class="list-starters"></div>
@@ -102,7 +122,7 @@
                     </div>
                 </div>
                 <div class="col s6 team-column" id="teamB-list">
-                    <h6 class="center-align team-b-title">ÉQUIPE B</h6>
+                    <h6 class="center-align team-b-title team-name-b">ÉQUIPE B</h6>
                     <div class="lineup-section">
                         <small>TITULAIRES</small>
                         <div class="list-starters"></div>
@@ -192,7 +212,12 @@
         // --- DONNÉES JOUEURS ---
         async function loadPlayers() {
             try {
-                const { data, error } = await supabaseClient.from('joueurs').select('*');
+                // Charger tous les joueurs mais filtrer par les équipes sélectionnées
+                const { data, error } = await supabaseClient
+                    .from('joueurs')
+                    .select('*')
+                    .in('equipe', [currentTeamA, currentTeamB]);
+
                 if (error) throw error;
                 if (!data) return;
 
@@ -205,7 +230,7 @@
                 data.forEach(p => {
                     const isOut = p.est_sorti ? 'opacity: 0.5; filter: grayscale(1);' : '';
                     const subIcon = p.statut === 'Titulaire' && !p.est_sorti ? 
-                        `<button onclick="prepareSub('${p.id}', '${p.type_equipe}', '${p.nom_prenom}')" class="btn-action btn-sub"><i class="fa fa-exchange-alt"></i></button>` : '';
+                        `<button onclick="prepareSub('${p.id}', '${p.equipe}', '${p.nom_prenom}')" class="btn-action btn-sub"><i class="fa fa-exchange-alt"></i></button>` : '';
 
                     const cardHTML = `
                     <div class="player-card" style="${isOut}">
@@ -216,21 +241,19 @@
                             <span class="player-team">${p.equipe} ${p.est_sorti ? '(SORTI)' : ''}</span>
                         </div>
                         <div class="action-overlay">
-                            <button onclick="updateStat('${p.id}', 'buts', '${p.nom_prenom}')" class="btn-action btn-goal"><i class="fa fa-futbol"></i></button>
+                            <button onclick="updateStat('${p.id}', 'buts', '${p.nom_prenom}', '${p.equipe}')" class="btn-action btn-goal"><i class="fa fa-futbol"></i></button>
                             <button onclick="updateStat('${p.id}', 'jaunes', '${p.nom_prenom}')" class="btn-action btn-yellow"><i class="fa fa-square"></i></button>
                             ${subIcon}
                         </div>
                     </div>`;
 
-                    if(p.type_equipe === 'Recevant' && gridA) gridA.innerHTML += cardHTML;
-                    else if(gridB) gridB.innerHTML += cardHTML;
+                    if(p.equipe === currentTeamA && gridA) gridA.innerHTML += cardHTML;
+                    else if(p.equipe === currentTeamB && gridB) gridB.innerHTML += cardHTML;
                 });
 
                 updateScore(data);
                 displayLineups(data);
-            } catch (e) { 
-                console.error("Erreur de synchronisation :", e.message); 
-            }
+            } catch (e) { console.error("Erreur chargement joueurs :", e.message); }
         }
 
         function displayLineups(players) {
@@ -244,14 +267,19 @@
             Object.values(sections).forEach(s => s.innerHTML = '');
 
             players.forEach(p => {
-                const key = `${p.type_equipe}-${p.statut}`;
-                const playerItem = `
-                <div class="lineup-item ${p.est_sorti ? 'player-out' : ''}">
-                    <span class="player-num">${p.numero}</span>
-                    <span class="player-name-small">${p.nom_prenom}</span>
-                    ${p.est_sorti ? '<i class="fa fa-arrow-down red-text" style="font-size:0.6rem"></i>' : ''}
-                </div>`;
-                if(sections[key]) sections[key].innerHTML += playerItem;
+                let sectionKey = "";
+                if(p.equipe === currentTeamA) sectionKey = `Recevant-${p.statut}`;
+                else if(p.equipe === currentTeamB) sectionKey = `Visiteur-${p.statut}`;
+                
+                if (sectionKey) {
+                    const playerItem = `
+                    <div class="lineup-item ${p.est_sorti ? 'player-out' : ''}">
+                        <span class="player-num">${p.numero}</span>
+                        <span class="player-name-small">${p.nom_prenom}</span>
+                        ${p.est_sorti ? '<i class="fa fa-arrow-down red-text" style="font-size:0.6rem"></i>' : ''}
+                    </div>`;
+                    if(sections[sectionKey]) sections[sectionKey].innerHTML += playerItem;
+                }
             });
         }
 
@@ -259,7 +287,7 @@
             const { data: subs } = await supabaseClient
                 .from('joueurs')
                 .select('*')
-                .eq('type_equipe', team)
+                .eq('equipe', team)
                 .eq('statut', 'Remplaçant')
                 .eq('est_sorti', false);
 
@@ -329,13 +357,13 @@
             win.print();
         }
 
-        async function updateStat(id, col, name) {
+        async function updateStat(id, col, name, team) {
             try {
                 const { data: p } = await supabaseClient.from('joueurs').select(col).eq('id', id).single();
                 const val = p[col] || 0;
 
                 if (col === 'buts') {
-                    logEvent(name, "a marqué un BUT !", "fa-futbol", "BUT");
+                    logEvent(`${name} (${team})`, "a marqué un BUT !", "fa-futbol", "BUT");
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                     Swal.fire({ title: 'BUT !!!', text: `${name} a marqué !`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
                 }
@@ -388,13 +416,14 @@
         }
 
         function updateScore(players) {
-            let sA = 0, sB = 0;
+            let scoreA = 0;
+            let scoreB = 0;
             players.forEach(p => {
-                if (p.type_equipe === 'Recevant') sA += (p.buts || 0);
-                else sB += (p.buts || 0);
+                if (p.equipe === currentTeamA) scoreA += (p.buts || 0);
+                else if (p.equipe === currentTeamB) scoreB += (p.buts || 0);
             });
-            document.getElementById('scoreA').innerText = sA;
-            document.getElementById('scoreB').innerText = sB;
+            document.getElementById('scoreA').innerText = scoreA;
+            document.getElementById('scoreB').innerText = scoreB;
         }
 
         // --- FORMULAIRE ---
