@@ -30,6 +30,10 @@
             </div>
         </div>
         <div class="admin-controls" style="margin-top: 15px;">
+            <div class="match-settings" style="margin-bottom: 15px;">
+                <input type="number" id="matchDuration" value="90" style="width: 50px; display: inline; height: 30px; text-align: center; border: 1px solid var(--primary) !important; color: white;">
+                <small>MINUTES</small>
+            </div>
             <button onclick="toggleChrono()" class="btn-floating btn-small waves-effect waves-light green"><i class="fa fa-play"></i></button>
             <button onclick="resetChrono()" class="btn-floating btn-small waves-effect waves-light grey"><i class="fa fa-undo"></i></button>
         </div>
@@ -113,9 +117,12 @@
 
         <!-- VUE HISTORIQUE -->
         <div id="view-history" class="history-container" style="display: none;">
-            <h5 class="center-align"><i class="fa fa-history"></i> CHRONOLOGIE DU MATCH</h5>
+            <div class="center-align">
+                <h5><i class="fa fa-history"></i> CHRONOLOGIE DU MATCH</h5>
+                <button onclick="generateReport()" class="btn btn-small blue pulse" style="margin: 15px 0;"><i class="fa fa-file-pdf"></i> GÉNÉRER LE RAPPORT</button>
+            </div>
             <div id="timeline" class="timeline">
-                <div class="timeline-empty">Aucun événement pour le moment</div>
+                <div class="timeline-empty">Chargement de l'historique...</div>
             </div>
         </div>
     </div>
@@ -145,6 +152,7 @@
                 a.classList.remove('active');
                 if (a.getAttribute('onclick').includes(viewId)) a.classList.add('active');
             });
+            if (viewId === 'view-history') loadHistory();
         }
 
         // --- CHRONO ---
@@ -157,12 +165,12 @@
                     seconds++;
                     updateChronoDisplay();
                 }, 1000);
-                logEvent("Match", "Le chrono a démarré", "fa-clock");
+                logEvent("Match", "Le chrono a démarré", "fa-clock", "INFO");
             } else {
                 isRunning = false;
                 btn.className = 'fa fa-play';
                 clearInterval(chronoInterval);
-                logEvent("Match", "Le chrono est arrêté", "fa-clock");
+                logEvent("Match", "Le chrono est arrêté", "fa-clock", "INFO");
             }
         }
 
@@ -172,7 +180,7 @@
             isRunning = false;
             updateChronoDisplay();
             document.querySelector('.admin-controls .green i').className = 'fa fa-play';
-            logEvent("Match", "Chrono réinitialisé", "fa-undo");
+            logEvent("Match", "Chrono réinitialisé", "fa-undo", "INFO");
         }
 
         function updateChronoDisplay() {
@@ -286,50 +294,97 @@
                 // Update In player
                 await supabaseClient.from('joueurs').update({ statut: 'Titulaire' }).eq('id', inId);
 
-                logEvent("Changement", `${pOut.nom_prenom} ➔ ${pIn.nom_prenom}`, "fa-exchange-alt");
+                logEvent("Changement", `${pOut.nom_prenom} ➔ ${pIn.nom_prenom}`, "fa-exchange-alt", "CHANGEMENT");
                 Swal.fire('Changement effectué !', `${pIn.nom_prenom} est entré en jeu.`, 'success');
-                loadPlayers();
             } catch (e) { console.error(e); }
+        }
+
+        async function generateReport() {
+            const { data: players } = await supabaseClient.from('joueurs').select('*');
+            const { data: events } = await supabaseClient.from('evenements').select('*').order('created_at', { ascending: true });
+            
+            const scoreA = document.getElementById('scoreA').innerText;
+            const scoreB = document.getElementById('scoreB').innerText;
+            
+            let reportContent = `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; text-align: left;">
+                    <h2 style="text-align: center; color: #000;">RAPPORT OFFICIEL - LPA PRO</h2>
+                    <hr>
+                    <div style="display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0;">
+                        <span>ÉQUIPE A: ${scoreA}</span>
+                        <span>VS</span>
+                        <span>ÉQUIPE B: ${scoreB}</span>
+                    </div>
+                    <h4>ÉVÉNEMENTS DU MATCH :</h4>
+                    <ul style="list-style: none; padding: 0;">
+                        ${events.map(ev => `<li style="padding: 5px 0; border-bottom: 1px solid #eee;">[${ev.temps}] ${ev.description.replace(/<[^>]*>?/gm, '')}</li>`).join('')}
+                    </ul>
+                    <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">Généré le ${new Date().toLocaleString()}</p>
+                </div>
+            `;
+
+            const win = window.open('', '_blank');
+            win.document.write(`<html><head><title>Rapport de Match</title></head><body>${reportContent}</body></html>`);
+            win.document.close();
+            win.print();
         }
 
         async function updateStat(id, col, name) {
             try {
                 const { data: p } = await supabaseClient.from('joueurs').select(col).eq('id', id).single();
-                const { error } = await supabaseClient.from('joueurs').update({ [col]: (p[col] || 0) + 1 }).eq('id', id);
-                if (error) throw error;
+                const val = p[col] || 0;
 
-                let icon = "fa-futbol";
-                let actionText = "a marqué un BUT !";
                 if (col === 'buts') {
+                    logEvent(name, "a marqué un BUT !", "fa-futbol", "BUT");
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                     Swal.fire({ title: 'BUT !!!', text: `${name} a marqué !`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
                 }
-                if (col === 'jaunes') { icon = "fa-square yellow-text"; actionText = "a reçu un carton JAUNE"; }
-                if (col === 'rouges') { icon = "fa-square red-text"; actionText = "a reçu un carton ROUGE"; }
+                if (col === 'jaunes') logEvent(name, "a reçu un carton JAUNE", "fa-square yellow-text", "CARTON");
+                if (col === 'rouges') logEvent(name, "a reçu un carton ROUGE", "fa-square red-text", "CARTON");
 
-                logEvent(name, actionText, icon);
-                // loadPlayers(); // Pas besoin si Realtime est activé
+                await supabaseClient.from('joueurs').update({ [col]: val + 1 }).eq('id', id);
             } catch (e) { console.error("Erreur update stat :", e.message); }
         }
 
-        function logEvent(subject, action, icon) {
-            const time = document.getElementById('chronoDisplay').innerText;
+        async function loadHistory() {
+            const { data, error } = await supabaseClient
+                .from('evenements')
+                .select('*')
+                .order('created_at', { ascending: false });
+
             const timeline = document.getElementById('timeline');
-            if(!timeline) return;
+            if (!data || data.length === 0) {
+                timeline.innerHTML = '<div class="timeline-empty">Aucun événement enregistré.</div>';
+                return;
+            }
 
-            const empty = document.querySelector('.timeline-empty');
-            if (empty) empty.remove();
+            timeline.innerHTML = '';
+            data.forEach(ev => {
+                timeline.innerHTML += `
+                <div class="timeline-item">
+                    <span class="time-tag">${ev.temps}</span>
+                    <i class="fa ${getIconForEvent(ev.type)} event-icon"></i>
+                    <div class="event-content">${ev.description}</div>
+                </div>`;
+            });
+        }
 
-            const item = document.createElement('div');
-            item.className = 'timeline-item';
-            item.innerHTML = `
-                <div class="time-tag">${time}</div>
-                <div class="event-icon"><i class="fa ${icon}"></i></div>
-                <div class="event-content">
-                    <strong>${subject}</strong> ${action}
-                </div>
-            `;
-            timeline.prepend(item);
+        function getIconForEvent(type) {
+            const icons = { 'BUT': 'fa-futbol', 'CARTON': 'fa-square', 'CHANGEMENT': 'fa-exchange-alt', 'INFO': 'fa-info-circle' };
+            return icons[type] || 'fa-dot-circle';
+        }
+
+        async function logEvent(name, action, iconType, eventType = 'INFO') {
+            const temps = document.getElementById('chronoDisplay').innerText;
+            const description = `<strong>${name}</strong> ${action}`;
+            
+            await supabaseClient.from('evenements').insert([{
+                temps,
+                type: eventType,
+                description: description
+            }]);
+            
+            loadHistory();
         }
 
         function updateScore(players) {
@@ -363,18 +418,19 @@
                 Swal.fire('Succès', 'Joueur inscrit avec succès !', 'success');
                 e.target.reset();
                 showView('view-lineup');
-                logEvent(player.nom_prenom, "a rejoint l'équipe", "fa-user-plus");
+                logEvent(player.nom_prenom, "a rejoint l'équipe", "fa-user-plus", "INFO");
             }
         });
 
         // --- REALTIME (LIVE) ---
-        // Cette fonction écoute les changements dans la base de données et met à jour l'interface automatiquement
         function subscribeToChanges() {
             supabaseClient
-                .channel('public:joueurs')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'joueurs' }, (payload) => {
-                    console.log('Changement détecté en direct !', payload);
-                    loadPlayers(); // Recharger les données dès qu'un changement survient
+                .channel('joueurs-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'joueurs' }, payload => {
+                    loadPlayers();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'evenements' }, payload => {
+                    loadHistory();
                 })
                 .subscribe();
         }
