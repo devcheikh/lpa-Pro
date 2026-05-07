@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LPA PRO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Orbitron:wght@500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="CSS/style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+
+    <div class="header-cup center-align">
+        <h1 class="main-title">LPA <span class="digital-tag">PRO</span></h1>
+        <div class="scoreboard">
+            <div class="score-box"><span class="score-number" id="scoreA">0</span></div>
+            <div class="chrono-container" id="chronoDisplay">00:00</div>
+            <div class="score-box"><span class="score-number" id="scoreB">0</span></div>
+        </div>
+        <div class="admin-controls">
+            <button onclick="toggleChrono()" class="btn-small green"><i class="fa fa-play"></i></button>
+            <button onclick="resetChrono()" class="btn-small grey"><i class="fa fa-undo"></i></button>
+        </div>
+    </div>
+
+    <nav class="nav-tabs">
+        <div class="container">
+            <a href="#" onclick="showView('view-public')" class="active"><i class="fa fa-user-plus"></i></a>
+            <a href="#" onclick="showView('view-lineup')"><i class="fa fa-list-ol"></i></a>
+            <a href="#" onclick="showView('view-admin')"><i class="fa fa-users-cog"></i></a>
+            <a href="#" onclick="showView('view-history')"><i class="fa fa-history"></i></a>
+        </div>
+    </nav>
+
+    <div id="app" class="container">
+        <!-- VUE INSCRIPTION -->
+        <div id="view-public" class="registration-form">
+            <h5 class="center-align">INSCRIPTION JOUEUR</h5>
+            <form id="playerForm">
+                <input type="text" name="equipe" placeholder="Nom de l'Académie" required>
+                <input type="text" name="nomPrenom" placeholder="Nom complet" required>
+                <input type="number" name="numero" placeholder="Numéro de maillot" required>
+                <select name="type_equipe" class="browser-default">
+                    <option value="Recevant">Équipe A (Hôte)</option>
+                    <option value="Visiteur">Équipe B (Visiteur)</option>
+                </select>
+                <div class="file-field input-field">
+                    <div class="btn green"><span>Photo</span><input type="file" id="f_photo" accept="image/*"></div>
+                    <div class="file-path-wrapper"><input class="file-path" type="text"></div>
+                </div>
+                <button type="submit" class="btn btn-submit">VALIDER</button>
+            </form>
+        </div>
+
+        <!-- VUE ADMIN (GRID) -->
+        <div id="view-admin" class="player-grid" style="display: none;">
+        </div>
+
+        <!-- VUE COMPOSITION -->
+        <div id="view-lineup" class="lineup-container" style="display: none;">
+            <h5 class="center-align"><i class="fa fa-users"></i> COMPOSITION DES ÉQUIPES</h5>
+            <div class="row">
+                <div class="col s6 team-column" id="teamA-list">
+                    <h6 class="center-align team-a-title">ÉQUIPE A</h6>
+                    <div class="lineup-list"></div>
+                </div>
+                <div class="col s6 team-column" id="teamB-list">
+                    <h6 class="center-align team-b-title">ÉQUIPE B</h6>
+                    <div class="lineup-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VUE HISTORIQUE -->
+        <div id="view-history" class="history-container" style="display: none;">
+            <h5 class="center-align"><i class="fa fa-history"></i> CHRONOLOGIE DU MATCH</h5>
+            <div id="timeline" class="timeline">
+                <div class="timeline-empty">Aucun événement pour le moment</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // --- CONFIGURATION ---
+        const SUPABASE_URL = 'https://gamyqxfkmqdubrbvzxul.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_4lUnrZT8akVxsr3PDnOCAA_gmam4b_X';
+        
+        // Utilisation de supabaseClient pour éviter le conflit avec l'objet global 'supabase'
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- VARIABLES GLOBALES ---
+        let chronoInterval;
+        let seconds = 0;
+        let isRunning = false;
+
+        // --- NAVIGATION ---
+        function showView(viewId) {
+            document.querySelectorAll('#app > div').forEach(div => div.style.display = 'none');
+            const targetView = document.getElementById(viewId);
+            if(targetView) targetView.style.display = 'block';
+
+            document.querySelectorAll('.nav-tabs a').forEach(a => {
+                a.classList.remove('active');
+                if (a.getAttribute('onclick').includes(viewId)) a.classList.add('active');
+            });
+        }
+
+        // --- CHRONO ---
+        function toggleChrono() {
+            const btn = document.querySelector('.admin-controls .green i');
+            if (!isRunning) {
+                isRunning = true;
+                btn.className = 'fa fa-pause';
+                chronoInterval = setInterval(() => {
+                    seconds++;
+                    updateChronoDisplay();
+                }, 1000);
+                logEvent("Match", "Le chrono a démarré", "fa-clock");
+            } else {
+                isRunning = false;
+                btn.className = 'fa fa-play';
+                clearInterval(chronoInterval);
+                logEvent("Match", "Le chrono est arrêté", "fa-clock");
+            }
+        }
+
+        function resetChrono() {
+            clearInterval(chronoInterval);
+            seconds = 0;
+            isRunning = false;
+            updateChronoDisplay();
+            document.querySelector('.admin-controls .green i').className = 'fa fa-play';
+            logEvent("Match", "Chrono réinitialisé", "fa-undo");
+        }
+
+        function updateChronoDisplay() {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('chronoDisplay').innerText = `${m}:${s}`;
+        }
+
+        // --- DONNÉES JOUEURS ---
+        async function loadPlayers() {
+            try {
+                const { data, error } = await supabaseClient.from('joueurs').select('*');
+                if (error) throw error;
+                if (!data) return;
+
+                // Mise à jour Admin Grid
+                const grid = document.getElementById('view-admin');
+                grid.innerHTML = '';
+                data.forEach(p => {
+                    grid.innerHTML += `
+                    <div class="player-card">
+                        <img src="${p.photo_url || 'https://via.placeholder.com/150'}" class="player-img">
+                        <div class="player-info">
+                            <span class="player-name">#${p.numero} ${p.nom_prenom}</span>
+                            <span class="player-team" style="font-size: 0.7rem; color: #aaa;">${p.equipe}</span>
+                        </div>
+                        <div class="action-overlay">
+                            <button onclick="updateStat('${p.id}', 'buts', '${p.nom_prenom}')" class="btn-action btn-goal"><i class="fa fa-futbol"></i></button>
+                            <button onclick="updateStat('${p.id}', 'jaunes', '${p.nom_prenom}')" class="btn-action btn-yellow"><i class="fa fa-square"></i></button>
+                            <button onclick="updateStat('${p.id}', 'rouges', '${p.nom_prenom}')" class="btn-action btn-red"><i class="fa fa-square" style="color:red"></i></button>
+                        </div>
+                    </div>`;
+                });
+
+                updateScore(data);
+                displayLineups(data);
+            } catch (e) { 
+                console.error("Erreur de synchronisation :", e.message); 
+            }
+        }
+
+        function displayLineups(players) {
+            const teamAList = document.querySelector('#teamA-list .lineup-list');
+            const teamBList = document.querySelector('#teamB-list .lineup-list');
+            if(!teamAList || !teamBList) return;
+
+            teamAList.innerHTML = '';
+            teamBList.innerHTML = '';
+
+            players.forEach(p => {
+                const playerItem = `
+                <div class="lineup-item">
+                    <span class="player-num">${p.numero}</span>
+                    <span class="player-name-small">${p.nom_prenom}</span>
+                </div>`;
+                if (p.type_equipe === 'Recevant') teamAList.innerHTML += playerItem;
+                else teamBList.innerHTML += playerItem;
+            });
+        }
+
+        async function updateStat(id, col, name) {
+            try {
+                const { data: p } = await supabaseClient.from('joueurs').select(col).eq('id', id).single();
+                const { error } = await supabaseClient.from('joueurs').update({ [col]: (p[col] || 0) + 1 }).eq('id', id);
+                if (error) throw error;
+
+                let icon = "fa-futbol";
+                let actionText = "a marqué un BUT !";
+                if (col === 'jaunes') { icon = "fa-square yellow-text"; actionText = "a reçu un carton JAUNE"; }
+                if (col === 'rouges') { icon = "fa-square red-text"; actionText = "a reçu un carton ROUGE"; }
+
+                logEvent(name, actionText, icon);
+                // loadPlayers(); // Pas besoin si Realtime est activé
+            } catch (e) { console.error("Erreur update stat :", e.message); }
+        }
+
+        function logEvent(subject, action, icon) {
+            const time = document.getElementById('chronoDisplay').innerText;
+            const timeline = document.getElementById('timeline');
+            if(!timeline) return;
+
+            const empty = document.querySelector('.timeline-empty');
+            if (empty) empty.remove();
+
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+            item.innerHTML = `
+                <div class="time-tag">${time}</div>
+                <div class="event-icon"><i class="fa ${icon}"></i></div>
+                <div class="event-content">
+                    <strong>${subject}</strong> ${action}
+                </div>
+            `;
+            timeline.prepend(item);
+        }
+
+        function updateScore(players) {
+            let sA = 0, sB = 0;
+            players.forEach(p => {
+                if (p.type_equipe === 'Recevant') sA += (p.buts || 0);
+                else sB += (p.buts || 0);
+            });
+            document.getElementById('scoreA').innerText = sA;
+            document.getElementById('scoreB').innerText = sB;
+        }
+
+        // --- FORMULAIRE ---
+        document.getElementById('playerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const player = {
+                equipe: formData.get('equipe'),
+                nom_prenom: formData.get('nomPrenom'),
+                numero: parseInt(formData.get('numero')),
+                type_equipe: formData.get('type_equipe'),
+                buts: 0, jaunes: 0, rouges: 0
+            };
+
+            const { error } = await supabaseClient.from('joueurs').insert([player]);
+            if (error) {
+                alert("Erreur lors de l'inscription : " + error.message);
+            } else {
+                alert("Joueur inscrit avec succès !");
+                e.target.reset();
+                showView('view-lineup');
+                logEvent(player.nom_prenom, "a rejoint l'équipe", "fa-user-plus");
+            }
+        });
+
+        // --- REALTIME (LIVE) ---
+        // Cette fonction écoute les changements dans la base de données et met à jour l'interface automatiquement
+        function subscribeToChanges() {
+            supabaseClient
+                .channel('public:joueurs')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'joueurs' }, (payload) => {
+                    console.log('Changement détecté en direct !', payload);
+                    loadPlayers(); // Recharger les données dès qu'un changement survient
+                })
+                .subscribe();
+        }
+
+        // --- INITIALISATION ---
+        window.onload = () => {
+            loadPlayers();
+            subscribeToChanges(); // Activer le mode Live
+            showView('view-public');
+        };
+    </script>
+</body>
+</html>

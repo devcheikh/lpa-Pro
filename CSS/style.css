@@ -1,0 +1,315 @@
+/* VARIABLES DE COULEURS GANI CUP */
+:root {
+  --primary: #008751;    /* Vert Sénégal / Sport */
+  --secondary: #fcd116;  /* Jaune Or */
+  --danger: #ef4135;     /* Rouge Alerte */
+  --dark: #121212;       /* Fond Ultra Dark */
+  --surface: #1e1e1e;    /* Cartes et Éléments */
+  --text: #ffffff;
+  --text-dim: #b3b3b3;
+  --orbitron: 'Orbitron', sans-serif;
+  --oswald: 'Oswald', sans-serif;
+}
+
+body {
+  background-color: var(--dark);
+  color: var(--text);
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding-bottom: 50px; /* Espace pour le scroll mobile */
+}
+
+/* HEADER STYLE "TABLEAU DES SCORES" */
+.header-cup {
+  background: linear-gradient(180deg, #1a1a1a 0%, var(--dark) 100%);
+  border-bottom: 2px solid var(--primary);
+  padding: 15px 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.main-title {
+  font-family: var(--oswald);
+  font-size: 1.8rem;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin: 0;
+}
+
+.digital-tag {
+  font-family: var(--orbitron);
+  font-size: 0.7rem;
+  background: var(--secondary);
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+/* SCOREBOARD LIVE */
+.scoreboard {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.score-box {
+  background: #000;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 5px 15px;
+  min-width: 60px;
+  text-align: center;
+}
+
+.score-number {
+  font-family: var(--orbitron);
+  font-size: 2.2rem;
+  color: var(--secondary);
+  text-shadow: 0 0 10px rgba(252, 209, 22, 0.4);
+}
+
+.chrono-container {
+  font-family: var(--orbitron);
+  font-size: 1.2rem;
+  color: #00ff00;
+  background: rgba(0,0,0,0.5);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #00ff00;
+}
+
+/* CARTES JOUEURS MODERNES */
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 15px;
+}
+
+.player-card {
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.2s;
+  border: 1px solid #333;
+}
+
+.player-card:active { transform: scale(0.95); }
+
+.player-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  filter: grayscale(20%);
+}
+
+.player-info {
+  padding: 8px;
+  text-align: center;
+}
+
+.player-name {
+  font-family: var(--oswald);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-stats {
+  display: flex;
+  justify-content: space-around;
+  background: rgba(0,0,0,0.3);
+  padding: 5px 0;
+  font-size: 0.8rem;
+}
+
+/* BOUTONS D'ACTION (ADMIN) */
+.action-overlay {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  background: #252525;
+}
+
+.btn-action {
+  border: none;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+}
+
+.btn-goal { background: var(--primary); }
+.btn-yellow { background: var(--secondary); color: black; }
+.btn-red { background: var(--danger); }
+
+/* FORMULAIRE D'INSCRIPTION */
+.registration-form {
+  background: var(--surface);
+  padding: 20px;
+  border-radius: 15px;
+  margin: 15px;
+}
+
+input, select {
+  background: #2a2a2a !important;
+  border: 1px solid #444 !important;
+  color: white !important;
+  border-radius: 8px !important;
+  padding: 0 10px !important;
+}
+
+.btn-submit {
+  background: var(--primary) !important;
+  width: 100%;
+  border-radius: 8px;
+  font-weight: bold;
+  height: 45px;
+}
+
+/* NAVIGATION TABS */
+.nav-tabs {
+  background: #1a1a1a;
+  border-top: 1px solid #333;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  z-index: 2000;
+  height: 55px;
+  display: flex;
+  align-items: center;
+}
+
+.nav-tabs .container {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+}
+
+.nav-tabs a {
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  transition: 0.3s;
+  padding: 10px 20px;
+}
+
+.nav-tabs a.active {
+  color: var(--primary);
+  border-bottom: 3px solid var(--primary);
+}
+
+/* TIMELINE / HISTORY */
+.history-container {
+  padding: 15px;
+  margin-bottom: 70px;
+}
+
+.timeline {
+  position: relative;
+  padding: 10px 0;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: var(--surface);
+  margin-bottom: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border-left: 4px solid var(--primary);
+  animation: slideIn 0.3s ease-out;
+}
+
+.time-tag {
+  font-family: var(--orbitron);
+  font-size: 0.8rem;
+  color: var(--secondary);
+  min-width: 45px;
+}
+
+.event-icon {
+  font-size: 1.2rem;
+}
+
+.event-content {
+  font-size: 0.9rem;
+}
+
+.yellow-text { color: var(--secondary); }
+.red-text { color: var(--danger); }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.timeline-empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 40px;
+  font-style: italic;
+}
+
+/* LINEUP / COMPOSITION */
+.lineup-container {
+  padding: 10px;
+  margin-bottom: 70px;
+}
+
+.team-column {
+  border: 1px solid #333;
+  min-height: 300px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 15px;
+  padding: 10px !important;
+}
+
+.team-a-title { color: var(--primary); font-weight: bold; border-bottom: 1px solid var(--primary); padding-bottom: 5px; }
+.team-b-title { color: var(--secondary); font-weight: bold; border-bottom: 1px solid var(--secondary); padding-bottom: 5px; }
+
+.lineup-list {
+  margin-top: 15px;
+}
+
+.lineup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-bottom: 1px solid #222;
+  font-family: var(--oswald);
+}
+
+.player-num {
+  background: #333;
+  color: var(--secondary);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-family: var(--orbitron);
+}
+
+.player-name-small {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  color: #ddd;
+}
+
