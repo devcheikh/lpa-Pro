@@ -47,6 +47,7 @@
     <nav class="nav-tabs">
         <div class="container">
             <a href="#" onclick="showView('view-public')" class="active"><i class="fa fa-user-plus"></i></a>
+            <a href="#" onclick="showView('view-live')"><i class="fa fa-broadcast-tower"></i></a>
             <a href="#" onclick="showView('view-lineup')"><i class="fa fa-list-ol"></i></a>
             <a href="#" onclick="showView('view-admin')"><i class="fa fa-users-cog"></i></a>
             <a href="#" onclick="showView('view-history')"><i class="fa fa-history"></i></a>
@@ -54,6 +55,14 @@
     </nav>
 
     <div id="app" class="container">
+        <!-- VUE MULTIPLEX (LIVE MATCHES) -->
+        <div id="view-live" class="live-multiplex" style="display: none;">
+            <h5 class="center-align"><i class="fa fa-broadcast-tower"></i> MATCHS EN DIRECT</h5>
+            <div id="live-matches-grid" class="live-grid">
+                <div class="timeline-empty">Chargement des matchs en direct...</div>
+            </div>
+        </div>
+
         <!-- VUE INSCRIPTION -->
         <div id="view-public" class="registration-form">
             <h5 class="center-align">INSCRIPTION JOUEUR</h5>
@@ -256,6 +265,42 @@
             } catch (e) { console.error("Erreur chargement joueurs :", e.message); }
         }
 
+        async function loadLiveMatches() {
+            const { data, error } = await supabaseClient
+                .from('matchs')
+                .select('*')
+                .eq('statut', 'En cours')
+                .order('created_at', { ascending: false });
+
+            const grid = document.getElementById('live-matches-grid');
+            if (!data || data.length === 0) {
+                grid.innerHTML = '<div class="timeline-empty">Aucun match en cours.</div>';
+                return;
+            }
+
+            grid.innerHTML = '';
+            data.forEach(m => {
+                grid.innerHTML += `
+                <div class="live-match-card">
+                    <div class="live-badge">DIRECT</div>
+                    <div class="match-teams">
+                        <div class="team-mini">
+                            <span>${m.equipe_a}</span>
+                            <span class="score-mini">${m.score_a}</span>
+                        </div>
+                        <div class="vs-mini">-</div>
+                        <div class="team-mini">
+                            <span class="score-mini">${m.score_b}</span>
+                            <span>${m.equipe_b}</span>
+                        </div>
+                    </div>
+                    <div class="match-footer">
+                        <span class="chrono-mini">${m.temps}</span>
+                    </div>
+                </div>`;
+            });
+        }
+
         function displayLineups(players) {
             const sections = {
                 'Recevant-Titulaire': document.querySelector('#teamA-list .list-starters'),
@@ -366,12 +411,29 @@
                     logEvent(`${name} (${team})`, "a marqué un BUT !", "fa-futbol", "BUT");
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                     Swal.fire({ title: 'BUT !!!', text: `${name} a marqué !`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
+                    
+                    // Sync with Matchs table
+                    await syncMatchScore();
                 }
                 if (col === 'jaunes') logEvent(name, "a reçu un carton JAUNE", "fa-square yellow-text", "CARTON");
                 if (col === 'rouges') logEvent(name, "a reçu un carton ROUGE", "fa-square red-text", "CARTON");
 
                 await supabaseClient.from('joueurs').update({ [col]: val + 1 }).eq('id', id);
             } catch (e) { console.error("Erreur update stat :", e.message); }
+        }
+
+        async function syncMatchScore() {
+            const scoreA = parseInt(document.getElementById('scoreA').innerText);
+            const scoreB = parseInt(document.getElementById('scoreB').innerText);
+            const temps = document.getElementById('chronoDisplay').innerText;
+
+            // On cherche le match correspondant aux équipes sélectionnées
+            await supabaseClient
+                .from('matchs')
+                .update({ score_a: scoreA, score_b: scoreB, temps: temps })
+                .eq('equipe_a', currentTeamA)
+                .eq('equipe_b', currentTeamB)
+                .eq('statut', 'En cours');
         }
 
         async function loadHistory() {
@@ -460,6 +522,9 @@
                 })
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'evenements' }, payload => {
                     loadHistory();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'matchs' }, payload => {
+                    loadLiveMatches();
                 })
                 .subscribe();
         }
