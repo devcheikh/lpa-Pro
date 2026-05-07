@@ -56,6 +56,10 @@
                     <option value="Recevant">Équipe A (Hôte)</option>
                     <option value="Visiteur">Équipe B (Visiteur)</option>
                 </select>
+                <select name="statut" class="browser-default" style="margin-top: 15px;">
+                    <option value="Titulaire">Titulaire (Starting XI)</option>
+                    <option value="Remplaçant">Remplaçant (Sub)</option>
+                </select>
                 <div class="file-field input-field">
                     <div class="btn green"><span>Photo</span><input type="file" id="f_photo" accept="image/*"></div>
                     <div class="file-path-wrapper"><input class="file-path" type="text"></div>
@@ -74,11 +78,25 @@
             <div class="row">
                 <div class="col s6 team-column" id="teamA-list">
                     <h6 class="center-align team-a-title">ÉQUIPE A</h6>
-                    <div class="lineup-list"></div>
+                    <div class="lineup-section">
+                        <small>TITULAIRES</small>
+                        <div class="list-starters"></div>
+                    </div>
+                    <div class="lineup-section">
+                        <small>REMPLAÇANTS</small>
+                        <div class="list-subs"></div>
+                    </div>
                 </div>
                 <div class="col s6 team-column" id="teamB-list">
                     <h6 class="center-align team-b-title">ÉQUIPE B</h6>
-                    <div class="lineup-list"></div>
+                    <div class="lineup-section">
+                        <small>TITULAIRES</small>
+                        <div class="list-starters"></div>
+                    </div>
+                    <div class="lineup-section">
+                        <small>REMPLAÇANTS</small>
+                        <div class="list-subs"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -164,17 +182,22 @@
                 const grid = document.getElementById('view-admin');
                 grid.innerHTML = '';
                 data.forEach(p => {
+                    const isOut = p.est_sorti ? 'opacity: 0.5; filter: grayscale(1);' : '';
+                    const subIcon = p.statut === 'Titulaire' && !p.est_sorti ? 
+                        `<button onclick="prepareSub('${p.id}', '${p.type_equipe}', '${p.nom_prenom}')" class="btn-action btn-sub"><i class="fa fa-exchange-alt"></i></button>` : '';
+
                     grid.innerHTML += `
-                    <div class="player-card">
+                    <div class="player-card" style="${isOut}">
+                        <div class="status-badge ${p.statut.toLowerCase()}">${p.statut}</div>
                         <img src="${p.photo_url || 'https://via.placeholder.com/150'}" class="player-img">
                         <div class="player-info">
                             <span class="player-name">#${p.numero} ${p.nom_prenom}</span>
-                            <span class="player-team" style="font-size: 0.7rem; color: #aaa;">${p.equipe}</span>
+                            <span class="player-team">${p.equipe} ${p.est_sorti ? '(SORTI)' : ''}</span>
                         </div>
                         <div class="action-overlay">
                             <button onclick="updateStat('${p.id}', 'buts', '${p.nom_prenom}')" class="btn-action btn-goal"><i class="fa fa-futbol"></i></button>
                             <button onclick="updateStat('${p.id}', 'jaunes', '${p.nom_prenom}')" class="btn-action btn-yellow"><i class="fa fa-square"></i></button>
-                            <button onclick="updateStat('${p.id}', 'rouges', '${p.nom_prenom}')" class="btn-action btn-red"><i class="fa fa-square" style="color:red"></i></button>
+                            ${subIcon}
                         </div>
                     </div>`;
                 });
@@ -187,22 +210,70 @@
         }
 
         function displayLineups(players) {
-            const teamAList = document.querySelector('#teamA-list .lineup-list');
-            const teamBList = document.querySelector('#teamB-list .lineup-list');
-            if(!teamAList || !teamBList) return;
-
-            teamAList.innerHTML = '';
-            teamBList.innerHTML = '';
+            const sections = {
+                'Recevant-Titulaire': document.querySelector('#teamA-list .list-starters'),
+                'Recevant-Remplaçant': document.querySelector('#teamA-list .list-subs'),
+                'Visiteur-Titulaire': document.querySelector('#teamB-list .list-starters'),
+                'Visiteur-Remplaçant': document.querySelector('#teamB-list .list-subs')
+            };
+            
+            Object.values(sections).forEach(s => s.innerHTML = '');
 
             players.forEach(p => {
+                const key = `${p.type_equipe}-${p.statut}`;
                 const playerItem = `
-                <div class="lineup-item">
+                <div class="lineup-item ${p.est_sorti ? 'player-out' : ''}">
                     <span class="player-num">${p.numero}</span>
                     <span class="player-name-small">${p.nom_prenom}</span>
+                    ${p.est_sorti ? '<i class="fa fa-arrow-down red-text" style="font-size:0.6rem"></i>' : ''}
                 </div>`;
-                if (p.type_equipe === 'Recevant') teamAList.innerHTML += playerItem;
-                else teamBList.innerHTML += playerItem;
+                if(sections[key]) sections[key].innerHTML += playerItem;
             });
+        }
+
+        async function prepareSub(outId, team, name) {
+            const { data: subs } = await supabaseClient
+                .from('joueurs')
+                .select('*')
+                .eq('type_equipe', team)
+                .eq('statut', 'Remplaçant')
+                .eq('est_sorti', false);
+
+            if (!subs || subs.length === 0) {
+                Swal.fire('Info', 'Aucun remplaçant disponible pour cette équipe.', 'info');
+                return;
+            }
+
+            const inputOptions = {};
+            subs.forEach(s => inputOptions[s.id] = `#${s.numero} ${s.nom_prenom}`);
+
+            const { value: inId } = await Swal.fire({
+                title: `Remplacement pour ${name}`,
+                input: 'select',
+                inputOptions: inputOptions,
+                inputPlaceholder: 'Choisir le joueur entrant',
+                showCancelButton: true,
+                confirmButtonText: 'Valider le changement',
+                confirmButtonColor: '#00ff88'
+            });
+
+            if (inId) executeSub(outId, inId);
+        }
+
+        async function executeSub(outId, inId) {
+            try {
+                const { data: pOut } = await supabaseClient.from('joueurs').select('nom_prenom').eq('id', outId).single();
+                const { data: pIn } = await supabaseClient.from('joueurs').select('nom_prenom').eq('id', inId).single();
+
+                // Update Out player
+                await supabaseClient.from('joueurs').update({ est_sorti: true }).eq('id', outId);
+                // Update In player
+                await supabaseClient.from('joueurs').update({ statut: 'Titulaire' }).eq('id', inId);
+
+                logEvent("Changement", `${pOut.nom_prenom} ➔ ${pIn.nom_prenom}`, "fa-exchange-alt");
+                Swal.fire('Changement effectué !', `${pIn.nom_prenom} est entré en jeu.`, 'success');
+                loadPlayers();
+            } catch (e) { console.error(e); }
         }
 
         async function updateStat(id, col, name) {
@@ -264,7 +335,9 @@
                 nom_prenom: formData.get('nomPrenom'),
                 numero: parseInt(formData.get('numero')),
                 type_equipe: formData.get('type_equipe'),
-                buts: 0, jaunes: 0, rouges: 0
+                statut: formData.get('statut'),
+                buts: 0, jaunes: 0, rouges: 0,
+                est_sorti: false
             };
 
             const { error } = await supabaseClient.from('joueurs').insert([player]);
