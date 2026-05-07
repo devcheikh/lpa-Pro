@@ -69,7 +69,17 @@
         </div>
 
         <!-- VUE ADMIN (GRID) -->
-        <div id="view-admin" class="player-grid" style="display: none;">
+        <div id="view-admin" class="player-management" style="display: none;">
+            <div class="row">
+                <div class="col s6 team-column">
+                    <h6 class="team-a-title center-align">ADMIN ÉQUIPE A</h6>
+                    <div id="admin-teamA" class="admin-grid"></div>
+                </div>
+                <div class="col s6 team-column">
+                    <h6 class="team-b-title center-align">ADMIN ÉQUIPE B</h6>
+                    <div id="admin-teamB" class="admin-grid"></div>
+                </div>
+            </div>
         </div>
 
         <!-- VUE COMPOSITION -->
@@ -178,15 +188,18 @@
                 if (error) throw error;
                 if (!data) return;
 
-                // Mise à jour Admin Grid
-                const grid = document.getElementById('view-admin');
-                grid.innerHTML = '';
+                // Mise à jour Admin Grid par équipe
+                const gridA = document.getElementById('admin-teamA');
+                const gridB = document.getElementById('admin-teamB');
+                if(gridA) gridA.innerHTML = '';
+                if(gridB) gridB.innerHTML = '';
+
                 data.forEach(p => {
                     const isOut = p.est_sorti ? 'opacity: 0.5; filter: grayscale(1);' : '';
                     const subIcon = p.statut === 'Titulaire' && !p.est_sorti ? 
                         `<button onclick="prepareSub('${p.id}', '${p.type_equipe}', '${p.nom_prenom}')" class="btn-action btn-sub"><i class="fa fa-exchange-alt"></i></button>` : '';
 
-                    grid.innerHTML += `
+                    const cardHTML = `
                     <div class="player-card" style="${isOut}">
                         <div class="status-badge ${p.statut.toLowerCase()}">${p.statut}</div>
                         <img src="${p.photo_url || 'https://via.placeholder.com/150'}" class="player-img">
@@ -200,6 +213,9 @@
                             ${subIcon}
                         </div>
                     </div>`;
+
+                    if(p.type_equipe === 'Recevant' && gridA) gridA.innerHTML += cardHTML;
+                    else if(gridB) gridB.innerHTML += cardHTML;
                 });
 
                 updateScore(data);
