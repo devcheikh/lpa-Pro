@@ -172,28 +172,57 @@ async function loadTeamSpace() {
 
     try {
         const [roster, matches] = await Promise.all([fetchRoster(equipe.id), fetchMatchsEquipe(equipe.id)]);
-        renderRoster(roster);
+
+        const nextMatch = matches
+            .filter((m) => m.statut === 'a_venir')
+            .sort((a, b) => new Date(a.date_heure || a.created_at) - new Date(b.date_heure || b.created_at))[0] || null;
+
+        let nextMatchComposition = {};
+        if (nextMatch) {
+            try {
+                const composition = await fetchComposition(nextMatch.id);
+                composition.forEach((c) => { nextMatchComposition[c.joueur_id] = c.statut; });
+            } catch (e) {
+                notifyError('Erreur chargement de la composition', e);
+            }
+        }
+
+        renderRoster(roster, equipe.id, nextMatch, nextMatchComposition);
         await renderTeamMatches(equipe, matches, roster);
     } catch (e) {
         notifyError('Erreur chargement de votre espace équipe', e);
     }
 }
 
-function renderRoster(roster) {
+const COMPOSITION_STATUS_LABELS = { Titulaire: 'Titulaire', Remplacant: 'Remplaçant', 'Non convoque': 'Non convoqué' };
+const COMPOSITION_STATUS_BADGE_CLASS = { Titulaire: 'titulaire', Remplacant: 'remplacant', 'Non convoque': 'info' };
+
+function renderRoster(roster, equipeId, nextMatch, compByJoueur) {
     const container = document.getElementById('rosterList');
     if (!roster.length) {
         container.innerHTML = '<div class="timeline-empty">Aucun joueur dans l\'effectif.</div>';
         return;
     }
-    container.innerHTML = roster.map((p) => `
+
+    const banner = nextMatch
+        ? `<div class="timeline-empty" style="grid-column: 1 / -1;">Statut affiché pour le prochain match vs ${escapeHtml(nameForEquipe(nextMatch.equipe_a_id === equipeId ? nextMatch.equipe_b_id : nextMatch.equipe_a_id))}</div>`
+        : '<div class="timeline-empty" style="grid-column: 1 / -1;">Aucun match à venir pour afficher un statut.</div>';
+
+    const cards = roster.map((p) => {
+        const statut = compByJoueur[p.id] || 'Non convoque';
+        return `
         <div class="player-card">
+            <div class="status-badge ${COMPOSITION_STATUS_BADGE_CLASS[statut]}" style="position: static; display: inline-block; margin: 10px 0 0 10px;">${escapeHtml(COMPOSITION_STATUS_LABELS[statut])}</div>
             <div class="player-info">
                 <span class="player-name">#${p.numero} ${escapeHtml(p.nom_prenom)}</span>
             </div>
             <div class="action-overlay">
                 <button class="btn-action" data-action="delete-roster" data-id="${p.id}"><i class="fa fa-trash red-text"></i></button>
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
+
+    container.innerHTML = banner + cards;
 }
 
 async function renderTeamMatches(equipe, matches, roster) {
