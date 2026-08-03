@@ -59,20 +59,29 @@
 
         <!-- VUE CONNEXION / INSCRIPTION ÉQUIPE -->
         <div id="view-auth" class="registration-form" style="display: none;">
-            <h5 class="center-align">CONNEXION ÉQUIPE / ORGANISATEUR</h5>
-            <form id="loginForm">
-                <input type="email" name="email" placeholder="Email" required>
-                <input type="password" name="password" placeholder="Mot de passe" required>
-                <button type="submit" class="btn btn-submit">SE CONNECTER</button>
-            </form>
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab active" data-action="auth-tab" data-id="login"><i class="fa fa-sign-in-alt"></i> Connexion</button>
+                <button type="button" class="auth-tab" data-action="auth-tab" data-id="signup"><i class="fa fa-user-plus"></i> Créer un compte</button>
+            </div>
 
-            <h5 class="center-align" style="margin-top: 30px;">CRÉER UN COMPTE ÉQUIPE</h5>
-            <form id="signupForm">
-                <input type="text" name="nomEquipe" placeholder="Nom de l'Académie" required>
-                <input type="email" name="email" placeholder="Email" required>
-                <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
-                <button type="submit" class="btn btn-submit">CRÉER LE COMPTE</button>
-            </form>
+            <div id="authTabLogin">
+                <h5 class="center-align">CONNEXION ÉQUIPE / ORGANISATEUR</h5>
+                <form id="loginForm">
+                    <input type="email" name="email" placeholder="Email" required>
+                    <input type="password" name="password" placeholder="Mot de passe" required>
+                    <button type="submit" class="btn btn-submit">SE CONNECTER</button>
+                </form>
+            </div>
+
+            <div id="authTabSignup" style="display: none;">
+                <h5 class="center-align">CRÉER UN COMPTE ÉQUIPE</h5>
+                <form id="signupForm">
+                    <input type="text" name="nomEquipe" placeholder="Nom de l'Académie" required>
+                    <input type="email" name="email" placeholder="Email" required>
+                    <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
+                    <button type="submit" class="btn btn-submit">CRÉER LE COMPTE</button>
+                </form>
+            </div>
         </div>
 
         <!-- VUE MON ÉQUIPE -->

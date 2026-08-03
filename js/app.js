@@ -66,6 +66,15 @@ function showView(viewId) {
     else if (viewId === 'view-team') loadTeamSpace();
     else if (viewId === 'view-organisateur') loadOrganisateurSpace();
     else if (viewId === 'view-admin') loadDirectView();
+    else if (viewId === 'view-auth') showAuthTab('login');
+}
+
+function showAuthTab(tab) {
+    document.getElementById('authTabLogin').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('authTabSignup').style.display = tab === 'signup' ? 'block' : 'none';
+    document.querySelectorAll('.auth-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.id === tab);
+    });
 }
 
 // --- CHRONO ---
@@ -732,6 +741,7 @@ function bindEvents() {
         if (action === 'goal') updateStat(id, 'buts', name);
         else if (action === 'yellow') updateStat(id, 'jaunes', name);
         else if (action === 'sub') prepareSub(id, team, name);
+        else if (action === 'auth-tab') showAuthTab(id);
         else if (action === 'select-match') { await selectMatch(id); showView('view-lineup'); }
         else if (action === 'piloter-match') { await selectMatch(id); showView('view-admin'); }
         else if (action === 'delete-roster') {
