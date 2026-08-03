@@ -225,14 +225,47 @@ async function renderTeamMatches(equipe, matches, roster) {
             </div>`;
         }).join('');
 
+        const summary = renderCompositionSummary(roster, compByJoueur);
+
         return `
         <div class="match-setup-box">
             <h6>vs ${escapeHtml(nameForEquipe(opponentId))} <span class="status-badge info" style="position:static;">${escapeHtml(m.statut)}</span></h6>
             ${rows || '<div class="timeline-empty">Ajoutez des joueurs à votre effectif pour composer votre équipe.</div>'}
+            ${roster.length ? summary : ''}
         </div>`;
     }));
 
     container.innerHTML = blocks.join('');
+}
+
+function renderCompositionSummary(roster, compByJoueur) {
+    const groups = { Titulaire: [], Remplacant: [], 'Non convoque': [] };
+    roster.forEach((p) => {
+        const statut = compByJoueur[p.id]?.statut || 'Non convoque';
+        groups[statut].push(p);
+    });
+
+    const renderGroup = (players) => players.length
+        ? players.map((p) => `
+            <div class="lineup-item">
+                <span class="player-num">${p.numero}</span>
+                <span class="player-name-small">${escapeHtml(p.nom_prenom)}</span>
+            </div>`).join('')
+        : '<div class="timeline-empty">Aucun</div>';
+
+    return `
+        <div class="lineup-section">
+            <small>TITULAIRES (${groups.Titulaire.length})</small>
+            ${renderGroup(groups.Titulaire)}
+        </div>
+        <div class="lineup-section">
+            <small>REMPLAÇANTS (${groups.Remplacant.length})</small>
+            ${renderGroup(groups.Remplacant)}
+        </div>
+        <div class="lineup-section">
+            <small>NON CONVOQUÉS (${groups['Non convoque'].length})</small>
+            ${renderGroup(groups['Non convoque'])}
+        </div>`;
 }
 
 async function handleAddPlayer(e) {
@@ -712,6 +745,7 @@ function bindEvents() {
         const { matchId, joueurId, equipeId } = sel.dataset;
         try {
             await upsertComposition(matchId, joueurId, equipeId, sel.value);
+            loadTeamSpace();
         } catch (err) {
             notifyError('Erreur enregistrement de la composition', err);
         }
