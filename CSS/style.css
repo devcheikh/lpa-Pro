@@ -574,3 +574,62 @@ input, select {
   font-size: 0.9rem;
   color: var(--primary);
 }
+
+/* ============================================= */
+/* RESPONSIVE — MOBILE / TABLETTE / WEB           */
+/* ============================================= */
+
+/* Le tableau de score ne doit jamais forcer un débordement horizontal */
+.scoreboard {
+  flex-wrap: wrap;
+}
+
+/* PETITS MOBILES (< 400px) */
+@media (max-width: 400px) {
+  .main-title { font-size: 1.7rem; }
+  .digital-tag { font-size: 0.7rem; }
+
+  .scoreboard { gap: 12px; }
+  .score-box { min-width: 60px; padding: 6px 14px; }
+  .score-number { font-size: 2.1rem; }
+  .chrono-container { font-size: 1.1rem; padding: 5px 12px; }
+
+  .team-name-display { font-size: 0.9rem; }
+
+  /* Les deux colonnes équipe A / équipe B passent en pleine largeur */
+  .row .team-column {
+    width: 100% !important;
+    margin-bottom: 15px;
+  }
+
+  .registration-form { margin: 12px; padding: 20px; }
+  .auth-tabs { flex-direction: column; }
+}
+
+/* TABLETTES (600px - 1023px) */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .container { width: 85%; }
+  .live-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+}
+
+/* GRANDS ÉCRANS / WEB (1024px et plus) */
+@media (min-width: 1024px) {
+  .container { width: 80%; max-width: 1000px; }
+
+  .main-title { font-size: 2.6rem; }
+  .score-number { font-size: 3.2rem; }
+  .chrono-container { font-size: 1.6rem; }
+
+  .player-grid,
+  .admin-grid {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+
+  .live-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+
+  .nav-tabs .container {
+    max-width: 600px !important;
+  }
+}
