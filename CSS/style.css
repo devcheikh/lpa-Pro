@@ -1,22 +1,23 @@
-/* DESIGN SYSTEM LPA PRO - MODERN & PREMIUM */
+/* DESIGN SYSTEM LPA PRO - CHARTE FÉDÉRATION SÉNÉGALAISE DE FOOTBALL */
 :root {
-  --primary: #00ff88;    /* Neon Green */
-  --secondary: #fcd116;  /* Golden Yellow */
-  --danger: #ff4757;     /* Bright Red */
-  --dark: #0a0a0b;       /* Deep Black */
+  --primary: #11A335;      /* Vert FSF / drapeau */
+  --primary-dark: #006330; /* Vert foncé FSF */
+  --secondary: #FFDC00;    /* Jaune FSF */
+  --danger: #E63F23;       /* Rouge FSF */
+  --dark: #081b0f;         /* Fond sombre à dominante verte */
   --surface: rgba(255, 255, 255, 0.05); /* Glassmorphism surface */
-  --glass: rgba(10, 10, 11, 0.8);
+  --glass: rgba(6, 18, 11, 0.82);
   --text: #ffffff;
-  --text-dim: #94a3b8;
+  --text-dim: #a3bcac;
   --orbitron: 'Orbitron', sans-serif;
   --oswald: 'Oswald', sans-serif;
-  --glow: 0 0 15px rgba(0, 255, 136, 0.3);
+  --glow: 0 0 15px rgba(17, 163, 53, 0.35);
 }
 
 body {
   background-color: var(--dark);
-  background-image: radial-gradient(circle at top right, rgba(0, 255, 136, 0.05), transparent),
-                    radial-gradient(circle at bottom left, rgba(252, 209, 22, 0.03), transparent);
+  background-image: radial-gradient(circle at top right, rgba(17, 163, 53, 0.08), transparent),
+                    radial-gradient(circle at bottom left, rgba(255, 220, 0, 0.04), transparent);
   color: var(--text);
   font-family: 'Inter', sans-serif;
   margin: 0;
@@ -97,7 +98,7 @@ body {
   font-family: var(--orbitron);
   font-size: 1.4rem;
   color: var(--primary);
-  background: rgba(0, 255, 136, 0.1);
+  background: rgba(17, 163, 53, 0.12);
   padding: 6px 18px;
   border-radius: 30px;
   border: 1px solid var(--primary);
@@ -127,9 +128,9 @@ body {
 }
 
 @keyframes pulse-animation {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(17, 163, 53, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(17, 163, 53, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(17, 163, 53, 0); }
 }
 
 /* NAVIGATION TABS PREMIUM */
@@ -288,7 +289,7 @@ input, select {
 }
 
 .btn-submit {
-  background: linear-gradient(45deg, var(--primary), #00d1ff) !important;
+  background: linear-gradient(45deg, var(--primary-dark), var(--primary)) !important;
   color: #000 !important;
   border-radius: 12px !important;
   height: 55px !important;
@@ -362,8 +363,8 @@ input, select {
   backdrop-filter: blur(5px);
 }
 
-.status-badge.titulaire { background: rgba(0, 255, 136, 0.2); color: var(--primary); border: 1px solid var(--primary); }
-.status-badge.remplacant { background: rgba(252, 209, 22, 0.2); color: var(--secondary); border: 1px solid var(--secondary); }
+.status-badge.titulaire { background: rgba(17, 163, 53, 0.22); color: var(--primary); border: 1px solid var(--primary); }
+.status-badge.remplacant { background: rgba(255, 220, 0, 0.22); color: var(--secondary); border: 1px solid var(--secondary); }
 .status-badge.info { background: rgba(255, 255, 255, 0.1); color: var(--text-dim); border: 1px solid rgba(255, 255, 255, 0.2); }
 
 /* LINEUP SECTIONS */
