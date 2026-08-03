@@ -523,7 +523,10 @@ async function loadDirectView() {
         const startBtn = currentMatch.statut === 'a_venir'
             ? `<button class="btn btn-small green" data-action="demarrer-match" data-id="${currentMatch.id}" style="margin-top:10px;">Démarrer le match</button>`
             : '';
-        info.innerHTML = `${escapeHtml(nameForEquipe(currentMatch.equipe_a_id))} vs ${escapeHtml(nameForEquipe(currentMatch.equipe_b_id))} — ${escapeHtml(currentMatch.statut)}<br>${startBtn}`;
+        const revertBtn = currentMatch.statut === 'en_cours'
+            ? `<button class="btn btn-small grey" data-action="revert-match" data-id="${currentMatch.id}" style="margin-top:10px;"><i class="fa fa-undo"></i> Repasser à "à venir" (déverrouille la composition)</button>`
+            : '';
+        info.innerHTML = `${escapeHtml(nameForEquipe(currentMatch.equipe_a_id))} vs ${escapeHtml(nameForEquipe(currentMatch.equipe_b_id))} — ${escapeHtml(currentMatch.statut)}<br>${startBtn}${revertBtn}`;
 
         await loadDirectSquads();
     } catch (e) {
@@ -779,6 +782,8 @@ function bindEvents() {
             try { await validerEquipe(id); loadOrganisateurSpace(); } catch (err) { notifyError('Erreur validation équipe', err); }
         } else if (action === 'demarrer-match') {
             try { await updateMatchStatut(id, 'en_cours'); loadDirectView(); } catch (err) { notifyError('Erreur démarrage du match', err); }
+        } else if (action === 'revert-match') {
+            try { await updateMatchStatut(id, 'a_venir'); loadDirectView(); } catch (err) { notifyError('Erreur lors du repassage à "à venir"', err); }
         } else if (action === 'valider-composition') {
             const selects = document.querySelectorAll(`.composition-select[data-match-id="${id}"]`);
             try {
