@@ -226,11 +226,15 @@ async function renderTeamMatches(equipe, matches, roster) {
         }).join('');
 
         const summary = renderCompositionSummary(roster, compByJoueur);
+        const validateBtn = (!locked && roster.length)
+            ? `<button class="btn btn-submit" data-action="valider-composition" data-id="${m.id}" data-team="${equipe.id}" style="margin-top: 15px;"><i class="fa fa-check"></i> VALIDER LA COMPOSITION</button>`
+            : '';
 
         return `
         <div class="match-setup-box">
             <h6>vs ${escapeHtml(nameForEquipe(opponentId))} <span class="status-badge info" style="position:static;">${escapeHtml(m.statut)}</span></h6>
             ${rows || '<div class="timeline-empty">Ajoutez des joueurs à votre effectif pour composer votre équipe.</div>'}
+            ${validateBtn}
             ${roster.length ? summary : ''}
         </div>`;
     }));
@@ -736,18 +740,17 @@ function bindEvents() {
             try { await validerEquipe(id); loadOrganisateurSpace(); } catch (err) { notifyError('Erreur validation équipe', err); }
         } else if (action === 'demarrer-match') {
             try { await updateMatchStatut(id, 'en_cours'); loadDirectView(); } catch (err) { notifyError('Erreur démarrage du match', err); }
-        }
-    });
-
-    document.getElementById('app').addEventListener('change', async (e) => {
-        const sel = e.target.closest('.composition-select');
-        if (!sel) return;
-        const { matchId, joueurId, equipeId } = sel.dataset;
-        try {
-            await upsertComposition(matchId, joueurId, equipeId, sel.value);
-            loadTeamSpace();
-        } catch (err) {
-            notifyError('Erreur enregistrement de la composition', err);
+        } else if (action === 'valider-composition') {
+            const selects = document.querySelectorAll(`.composition-select[data-match-id="${id}"]`);
+            try {
+                await Promise.all(Array.from(selects).map((sel) =>
+                    upsertComposition(id, sel.dataset.joueurId, sel.dataset.equipeId, sel.value)
+                ));
+                Swal.fire('Composition validée', 'Votre composition a été enregistrée pour ce match.', 'success');
+                loadTeamSpace();
+            } catch (err) {
+                notifyError('Erreur validation de la composition', err);
+            }
         }
     });
 }
