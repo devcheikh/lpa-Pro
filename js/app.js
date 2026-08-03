@@ -164,6 +164,7 @@ async function handleLogout() {
         await signOut();
         currentMatchId = null;
         currentMatch = null;
+        localStorage.removeItem('lpa_currentMatchId');
         showView('view-live');
     } catch (err) {
         notifyError('Erreur déconnexion', err);
@@ -406,6 +407,7 @@ async function handleCreateMatch(e) {
 // --- SÉLECTION DE MATCH (spectateur ou organisateur) ---
 async function selectMatch(matchId) {
     currentMatchId = matchId;
+    localStorage.setItem('lpa_currentMatchId', matchId);
     subscribeToMatch(matchId);
     try {
         currentMatch = await fetchMatchById(matchId);
@@ -840,8 +842,16 @@ window.onload = async () => {
     bindEvents();
     renderNav();
     await refreshEquipesCache();
+
+    const storedMatchId = localStorage.getItem('lpa_currentMatchId');
+    if (storedMatchId) {
+        await selectMatch(storedMatchId);
+    }
+
     showView('view-live');
     subscribeGlobal();
+
+    let matchViewRestored = false;
 
     onAuthChange(async (session) => {
         currentSession = session;
@@ -854,5 +864,12 @@ window.onload = async () => {
         }
         currentRole = await resolveRole(session);
         renderNav();
+
+        if (!matchViewRestored) {
+            matchViewRestored = true;
+            if (storedMatchId && currentRole?.type === 'admin') {
+                showView('view-admin');
+            }
+        }
     });
 };
