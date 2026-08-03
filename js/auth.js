@@ -13,8 +13,11 @@ async function signUpEquipe(email, password, nomEquipe) {
         // Session active immédiatement (confirmation email désactivée) : on peut créer la ligne équipe tout de suite.
         await createEquipeRow(data.user.id, nomEquipe);
     } else if (data.user) {
-        // Confirmation email requise : la ligne équipe sera créée à la première connexion réelle (voir completePendingSignup).
+        // Confirmation email requise : la ligne équipe sera créée à la première connexion réelle de CET utilisateur
+        // précis (voir completePendingSignup) — on mémorise son uid pour ne jamais l'attacher à une autre session
+        // (ex: un admin déjà connecté dans le même navigateur au moment de l'inscription).
         localStorage.setItem('lpa_pending_equipe_nom', nomEquipe);
+        localStorage.setItem('lpa_pending_equipe_uid', data.user.id);
     }
 
     return data;
@@ -22,11 +25,13 @@ async function signUpEquipe(email, password, nomEquipe) {
 
 async function completePendingSignup(session) {
     const pendingNom = localStorage.getItem('lpa_pending_equipe_nom');
-    if (!pendingNom || !session) return;
+    const pendingUid = localStorage.getItem('lpa_pending_equipe_uid');
+    if (!pendingNom || !pendingUid || !session || session.user.id !== pendingUid) return;
     try {
         await createEquipeRow(session.user.id, pendingNom);
     } finally {
         localStorage.removeItem('lpa_pending_equipe_nom');
+        localStorage.removeItem('lpa_pending_equipe_uid');
     }
 }
 
