@@ -78,31 +78,42 @@ function showAuthTab(tab) {
 }
 
 // --- CHRONO ---
-function toggleChrono() {
+function startChronoInterval() {
+    if (isRunning) return;
+    isRunning = true;
     const btn = document.querySelector('.admin-controls .green i');
+    if (btn) btn.className = 'fa fa-pause';
+    chronoInterval = setInterval(() => {
+        seconds++;
+        updateChronoDisplay();
+        checkMatchEnd();
+        if (seconds % 5 === 0) syncMatchScoreFromDom();
+    }, 1000);
+}
+
+function stopChronoInterval() {
+    isRunning = false;
+    clearInterval(chronoInterval);
+    const btn = document.querySelector('.admin-controls .green i');
+    if (btn) btn.className = 'fa fa-play';
+}
+
+function toggleChrono() {
     if (!isRunning) {
-        isRunning = true;
-        btn.className = 'fa fa-pause';
-        chronoInterval = setInterval(() => {
-            seconds++;
-            updateChronoDisplay();
-            checkMatchEnd();
-        }, 1000);
+        startChronoInterval();
         logEvent('Match', 'Le chrono a démarré', 'fa-clock', 'INFO');
     } else {
-        isRunning = false;
-        btn.className = 'fa fa-play';
-        clearInterval(chronoInterval);
+        stopChronoInterval();
+        syncMatchScoreFromDom();
         logEvent('Match', 'Le chrono est arrêté', 'fa-clock', 'INFO');
     }
 }
 
 function resetChrono() {
-    clearInterval(chronoInterval);
+    stopChronoInterval();
     seconds = 0;
-    isRunning = false;
     updateChronoDisplay();
-    document.querySelector('.admin-controls .green i').className = 'fa fa-play';
+    syncMatchScoreFromDom();
     logEvent('Match', 'Chrono réinitialisé', 'fa-undo', 'INFO');
 }
 
@@ -112,9 +123,8 @@ function updateChronoDisplay() {
 
 function checkMatchEnd() {
     if (isRunning && seconds >= matchDuration * 60) {
-        isRunning = false;
-        clearInterval(chronoInterval);
-        document.querySelector('.admin-controls .green i').className = 'fa fa-play';
+        stopChronoInterval();
+        syncMatchScoreFromDom();
         logEvent('Match', 'Fin du temps réglementaire', 'fa-flag-checkered', 'INFO');
         Swal.fire({ title: 'Fin du match', text: `Temps réglementaire (${matchDuration} min) écoulé.`, icon: 'info' });
     }
@@ -527,6 +537,10 @@ async function loadDirectView() {
             ? `<button class="btn btn-small grey" data-action="revert-match" data-id="${currentMatch.id}" style="margin-top:10px;"><i class="fa fa-undo"></i> Repasser à "à venir" (déverrouille la composition)</button>`
             : '';
         info.innerHTML = `${escapeHtml(nameForEquipe(currentMatch.equipe_a_id))} vs ${escapeHtml(nameForEquipe(currentMatch.equipe_b_id))} — ${escapeHtml(currentMatch.statut)}<br>${startBtn}${revertBtn}`;
+
+        if (currentMatch.statut === 'en_cours') {
+            startChronoInterval();
+        }
 
         await loadDirectSquads();
     } catch (e) {
