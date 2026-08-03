@@ -45,13 +45,7 @@
     </div>
 
     <nav class="nav-tabs">
-        <div class="container">
-            <a href="#" onclick="showView('view-public')" class="active"><i class="fa fa-user-plus"></i></a>
-            <a href="#" onclick="showView('view-live')"><i class="fa fa-broadcast-tower"></i></a>
-            <a href="#" onclick="showView('view-lineup')"><i class="fa fa-list-ol"></i></a>
-            <a href="#" onclick="showView('view-admin')"><i class="fa fa-users-cog"></i></a>
-            <a href="#" onclick="showView('view-history')"><i class="fa fa-history"></i></a>
-        </div>
+        <div class="container" id="navTabs"></div>
     </nav>
 
     <div id="app" class="container">
@@ -63,53 +57,84 @@
             </div>
         </div>
 
-        <!-- VUE INSCRIPTION -->
-        <div id="view-public" class="registration-form">
-            <h5 class="center-align">INSCRIPTION JOUEUR</h5>
-            <form id="playerForm">
-                <input type="text" name="equipe" placeholder="Nom de l'Académie" required>
-                <input type="text" name="nomPrenom" placeholder="Nom complet" required>
-                <input type="number" name="numero" placeholder="Numéro de maillot" required>
-                <select name="type_equipe" class="browser-default">
-                    <option value="Recevant">Équipe A (Hôte)</option>
-                    <option value="Visiteur">Équipe B (Visiteur)</option>
-                </select>
-                <select name="statut" class="browser-default" style="margin-top: 15px;">
-                    <option value="Titulaire">Titulaire (Starting XI)</option>
-                    <option value="Remplaçant">Remplaçant (Sub)</option>
-                </select>
-                <div class="file-field input-field">
-                    <div class="btn green"><span>Photo</span><input type="file" id="f_photo" accept="image/*"></div>
-                    <div class="file-path-wrapper"><input class="file-path" type="text"></div>
-                </div>
-                <button type="submit" class="btn btn-submit">VALIDER</button>
+        <!-- VUE CONNEXION / INSCRIPTION ÉQUIPE -->
+        <div id="view-auth" class="registration-form" style="display: none;">
+            <h5 class="center-align">CONNEXION ÉQUIPE / ORGANISATEUR</h5>
+            <form id="loginForm">
+                <input type="email" name="email" placeholder="Email" required>
+                <input type="password" name="password" placeholder="Mot de passe" required>
+                <button type="submit" class="btn btn-submit">SE CONNECTER</button>
+            </form>
+
+            <h5 class="center-align" style="margin-top: 30px;">CRÉER UN COMPTE ÉQUIPE</h5>
+            <form id="signupForm">
+                <input type="text" name="nomEquipe" placeholder="Nom de l'Académie" required>
+                <input type="email" name="email" placeholder="Email" required>
+                <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
+                <button type="submit" class="btn btn-submit">CRÉER LE COMPTE</button>
             </form>
         </div>
 
-        <!-- VUE ADMIN (GRID) -->
+        <!-- VUE MON ÉQUIPE -->
+        <div id="view-team" class="player-management" style="display: none;">
+            <div class="match-setup-box">
+                <h6><i class="fa fa-shield-alt"></i> <span id="teamStatusLabel">MON ÉQUIPE</span></h6>
+            </div>
+
+            <h6 class="team-a-title center-align">EFFECTIF</h6>
+            <form id="addPlayerForm" class="row" style="margin-bottom: 10px;">
+                <input type="text" name="nomPrenom" placeholder="Nom complet" required style="display:inline-block; width: 55%; margin-right: 2%;">
+                <input type="number" name="numero" placeholder="N°" required style="display:inline-block; width: 20%; margin-right: 2%;">
+                <button type="submit" class="btn btn-submit" style="display:inline-block; width: 20%; height: 50px;"><i class="fa fa-plus"></i></button>
+            </form>
+            <div id="rosterList" class="admin-grid"></div>
+
+            <h6 class="team-a-title center-align" style="margin-top: 30px;">MES MATCHS</h6>
+            <div id="teamMatchesList"></div>
+        </div>
+
+        <!-- VUE ORGANISATEUR -->
+        <div id="view-organisateur" class="player-management" style="display: none;">
+            <h6 class="team-a-title center-align"><i class="fa fa-hourglass-half"></i> ÉQUIPES EN ATTENTE DE VALIDATION</h6>
+            <div id="pendingTeamsList"></div>
+
+            <div class="match-setup-box" style="margin-top: 20px;">
+                <h6><i class="fa fa-calendar-plus"></i> CRÉER UN MATCH</h6>
+                <form id="createMatchForm">
+                    <div class="row" style="margin-bottom: 0;">
+                        <div class="col s6">
+                            <select id="createMatchEquipeA" class="browser-default" required>
+                                <option value="">Choisir Équipe A</option>
+                            </select>
+                        </div>
+                        <div class="col s6">
+                            <select id="createMatchEquipeB" class="browser-default" required>
+                                <option value="">Choisir Équipe B</option>
+                            </select>
+                        </div>
+                    </div>
+                    <input type="datetime-local" name="dateHeure">
+                    <button type="submit" class="btn btn-submit">CRÉER LE MATCH</button>
+                </form>
+            </div>
+
+            <h6 class="team-a-title center-align" style="margin-top: 20px;">TOUS LES MATCHS</h6>
+            <div id="allMatchsList"></div>
+        </div>
+
+        <!-- VUE ADMIN (DIRECT) -->
         <div id="view-admin" class="player-management" style="display: none;">
             <div class="match-setup-box">
-                <h6><i class="fa fa-cog"></i> CONFIGURATION DU MATCH</h6>
-                <div class="row">
-                    <div class="col s6">
-                        <select id="selectTeamA" class="browser-default" onchange="updateMatchConfig()">
-                            <option value="">Choisir Équipe A</option>
-                        </select>
-                    </div>
-                    <div class="col s6">
-                        <select id="selectTeamB" class="browser-default" onchange="updateMatchConfig()">
-                            <option value="">Choisir Équipe B</option>
-                        </select>
-                    </div>
-                </div>
+                <h6><i class="fa fa-satellite-dish"></i> PILOTAGE DU MATCH</h6>
+                <div id="adminMatchInfo" class="center-align">Sélectionnez un match depuis l'espace Organisateur.</div>
             </div>
             <div class="row">
                 <div class="col s6 team-column">
-                    <h6 class="team-a-title center-align team-name-a">ÉQUIPE A</h6>
+                    <h6 class="team-a-title center-align">ÉQUIPE A</h6>
                     <div id="admin-teamA" class="admin-grid"></div>
                 </div>
                 <div class="col s6 team-column">
-                    <h6 class="team-b-title center-align team-name-b">ÉQUIPE B</h6>
+                    <h6 class="team-b-title center-align">ÉQUIPE B</h6>
                     <div id="admin-teamB" class="admin-grid"></div>
                 </div>
             </div>
@@ -118,9 +143,10 @@
         <!-- VUE COMPOSITION -->
         <div id="view-lineup" class="lineup-container" style="display: none;">
             <h5 class="center-align"><i class="fa fa-users"></i> COMPOSITION DES ÉQUIPES</h5>
-            <div class="row">
+            <div id="lineupEmpty" class="timeline-empty" style="display: none;">Sélectionnez un match dans l'onglet Multiplex pour voir sa composition.</div>
+            <div class="row" id="lineupContent">
                 <div class="col s6 team-column" id="teamA-list">
-                    <h6 class="center-align team-a-title team-name-a">ÉQUIPE A</h6>
+                    <h6 class="center-align team-a-title">ÉQUIPE A</h6>
                     <div class="lineup-section">
                         <small>TITULAIRES</small>
                         <div class="list-starters"></div>
@@ -131,7 +157,7 @@
                     </div>
                 </div>
                 <div class="col s6 team-column" id="teamB-list">
-                    <h6 class="center-align team-b-title team-name-b">ÉQUIPE B</h6>
+                    <h6 class="center-align team-b-title">ÉQUIPE B</h6>
                     <div class="lineup-section">
                         <small>TITULAIRES</small>
                         <div class="list-starters"></div>
@@ -151,7 +177,7 @@
                 <button onclick="generateReport()" class="btn btn-small blue pulse" style="margin: 15px 0;"><i class="fa fa-file-pdf"></i> GÉNÉRER LE RAPPORT</button>
             </div>
             <div id="timeline" class="timeline">
-                <div class="timeline-empty">Chargement de l'historique...</div>
+                <div class="timeline-empty">Sélectionnez un match dans l'onglet Multiplex.</div>
             </div>
         </div>
     </div>
@@ -159,382 +185,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script>
-        // --- CONFIGURATION ---
-        const SUPABASE_URL = 'https://gamyqxfkmqdubrbvzxul.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_4lUnrZT8akVxsr3PDnOCAA_gmam4b_X';
-        
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // --- VARIABLES GLOBALES ---
-        let chronoInterval;
-        let seconds = 0;
-        let isRunning = false;
-
-        // --- NAVIGATION ---
-        function showView(viewId) {
-            document.querySelectorAll('#app > div').forEach(div => div.style.display = 'none');
-            const targetView = document.getElementById(viewId);
-            if(targetView) targetView.style.display = 'block';
-
-            document.querySelectorAll('.nav-tabs a').forEach(a => {
-                a.classList.remove('active');
-                if (a.getAttribute('onclick').includes(viewId)) a.classList.add('active');
-            });
-            if (viewId === 'view-history') loadHistory();
-        }
-
-        // --- CHRONO ---
-        function toggleChrono() {
-            const btn = document.querySelector('.admin-controls .green i');
-            if (!isRunning) {
-                isRunning = true;
-                btn.className = 'fa fa-pause';
-                chronoInterval = setInterval(() => {
-                    seconds++;
-                    updateChronoDisplay();
-                }, 1000);
-                logEvent("Match", "Le chrono a démarré", "fa-clock", "INFO");
-            } else {
-                isRunning = false;
-                btn.className = 'fa fa-play';
-                clearInterval(chronoInterval);
-                logEvent("Match", "Le chrono est arrêté", "fa-clock", "INFO");
-            }
-        }
-
-        function resetChrono() {
-            clearInterval(chronoInterval);
-            seconds = 0;
-            isRunning = false;
-            updateChronoDisplay();
-            document.querySelector('.admin-controls .green i').className = 'fa fa-play';
-            logEvent("Match", "Chrono réinitialisé", "fa-undo", "INFO");
-        }
-
-        function updateChronoDisplay() {
-            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-            const s = (seconds % 60).toString().padStart(2, '0');
-            document.getElementById('chronoDisplay').innerText = `${m}:${s}`;
-        }
-
-        // --- DONNÉES JOUEURS ---
-        async function loadPlayers() {
-            try {
-                // Charger tous les joueurs mais filtrer par les équipes sélectionnées
-                const { data, error } = await supabaseClient
-                    .from('joueurs')
-                    .select('*')
-                    .in('equipe', [currentTeamA, currentTeamB]);
-
-                if (error) throw error;
-                if (!data) return;
-
-                // Mise à jour Admin Grid par équipe
-                const gridA = document.getElementById('admin-teamA');
-                const gridB = document.getElementById('admin-teamB');
-                if(gridA) gridA.innerHTML = '';
-                if(gridB) gridB.innerHTML = '';
-
-                data.forEach(p => {
-                    const isOut = p.est_sorti ? 'opacity: 0.5; filter: grayscale(1);' : '';
-                    const subIcon = p.statut === 'Titulaire' && !p.est_sorti ? 
-                        `<button onclick="prepareSub('${p.id}', '${p.equipe}', '${p.nom_prenom}')" class="btn-action btn-sub"><i class="fa fa-exchange-alt"></i></button>` : '';
-
-                    const cardHTML = `
-                    <div class="player-card" style="${isOut}">
-                        <div class="status-badge ${p.statut.toLowerCase()}">${p.statut}</div>
-                        <img src="${p.photo_url || 'https://via.placeholder.com/150'}" class="player-img">
-                        <div class="player-info">
-                            <span class="player-name">#${p.numero} ${p.nom_prenom}</span>
-                            <span class="player-team">${p.equipe} ${p.est_sorti ? '(SORTI)' : ''}</span>
-                        </div>
-                        <div class="action-overlay">
-                            <button onclick="updateStat('${p.id}', 'buts', '${p.nom_prenom}', '${p.equipe}')" class="btn-action btn-goal"><i class="fa fa-futbol"></i></button>
-                            <button onclick="updateStat('${p.id}', 'jaunes', '${p.nom_prenom}')" class="btn-action btn-yellow"><i class="fa fa-square"></i></button>
-                            ${subIcon}
-                        </div>
-                    </div>`;
-
-                    if(p.equipe === currentTeamA && gridA) gridA.innerHTML += cardHTML;
-                    else if(p.equipe === currentTeamB && gridB) gridB.innerHTML += cardHTML;
-                });
-
-                updateScore(data);
-                displayLineups(data);
-            } catch (e) { console.error("Erreur chargement joueurs :", e.message); }
-        }
-
-        async function loadLiveMatches() {
-            const { data, error } = await supabaseClient
-                .from('matchs')
-                .select('*')
-                .eq('statut', 'En cours')
-                .order('created_at', { ascending: false });
-
-            const grid = document.getElementById('live-matches-grid');
-            if (!data || data.length === 0) {
-                grid.innerHTML = '<div class="timeline-empty">Aucun match en cours.</div>';
-                return;
-            }
-
-            grid.innerHTML = '';
-            data.forEach(m => {
-                grid.innerHTML += `
-                <div class="live-match-card">
-                    <div class="live-badge">DIRECT</div>
-                    <div class="match-teams">
-                        <div class="team-mini">
-                            <span>${m.equipe_a}</span>
-                            <span class="score-mini">${m.score_a}</span>
-                        </div>
-                        <div class="vs-mini">-</div>
-                        <div class="team-mini">
-                            <span class="score-mini">${m.score_b}</span>
-                            <span>${m.equipe_b}</span>
-                        </div>
-                    </div>
-                    <div class="match-footer">
-                        <span class="chrono-mini">${m.temps}</span>
-                    </div>
-                </div>`;
-            });
-        }
-
-        function displayLineups(players) {
-            const sections = {
-                'Recevant-Titulaire': document.querySelector('#teamA-list .list-starters'),
-                'Recevant-Remplaçant': document.querySelector('#teamA-list .list-subs'),
-                'Visiteur-Titulaire': document.querySelector('#teamB-list .list-starters'),
-                'Visiteur-Remplaçant': document.querySelector('#teamB-list .list-subs')
-            };
-            
-            Object.values(sections).forEach(s => s.innerHTML = '');
-
-            players.forEach(p => {
-                let sectionKey = "";
-                if(p.equipe === currentTeamA) sectionKey = `Recevant-${p.statut}`;
-                else if(p.equipe === currentTeamB) sectionKey = `Visiteur-${p.statut}`;
-                
-                if (sectionKey) {
-                    const playerItem = `
-                    <div class="lineup-item ${p.est_sorti ? 'player-out' : ''}">
-                        <span class="player-num">${p.numero}</span>
-                        <span class="player-name-small">${p.nom_prenom}</span>
-                        ${p.est_sorti ? '<i class="fa fa-arrow-down red-text" style="font-size:0.6rem"></i>' : ''}
-                    </div>`;
-                    if(sections[sectionKey]) sections[sectionKey].innerHTML += playerItem;
-                }
-            });
-        }
-
-        async function prepareSub(outId, team, name) {
-            const { data: subs } = await supabaseClient
-                .from('joueurs')
-                .select('*')
-                .eq('equipe', team)
-                .eq('statut', 'Remplaçant')
-                .eq('est_sorti', false);
-
-            if (!subs || subs.length === 0) {
-                Swal.fire('Info', 'Aucun remplaçant disponible pour cette équipe.', 'info');
-                return;
-            }
-
-            const inputOptions = {};
-            subs.forEach(s => inputOptions[s.id] = `#${s.numero} ${s.nom_prenom}`);
-
-            const { value: inId } = await Swal.fire({
-                title: `Remplacement pour ${name}`,
-                input: 'select',
-                inputOptions: inputOptions,
-                inputPlaceholder: 'Choisir le joueur entrant',
-                showCancelButton: true,
-                confirmButtonText: 'Valider le changement',
-                confirmButtonColor: '#00ff88'
-            });
-
-            if (inId) executeSub(outId, inId);
-        }
-
-        async function executeSub(outId, inId) {
-            try {
-                const { data: pOut } = await supabaseClient.from('joueurs').select('nom_prenom').eq('id', outId).single();
-                const { data: pIn } = await supabaseClient.from('joueurs').select('nom_prenom').eq('id', inId).single();
-
-                // Update Out player
-                await supabaseClient.from('joueurs').update({ est_sorti: true }).eq('id', outId);
-                // Update In player
-                await supabaseClient.from('joueurs').update({ statut: 'Titulaire' }).eq('id', inId);
-
-                logEvent("Changement", `${pOut.nom_prenom} ➔ ${pIn.nom_prenom}`, "fa-exchange-alt", "CHANGEMENT");
-                Swal.fire('Changement effectué !', `${pIn.nom_prenom} est entré en jeu.`, 'success');
-            } catch (e) { console.error(e); }
-        }
-
-        async function generateReport() {
-            const { data: players } = await supabaseClient.from('joueurs').select('*');
-            const { data: events } = await supabaseClient.from('evenements').select('*').order('created_at', { ascending: true });
-            
-            const scoreA = document.getElementById('scoreA').innerText;
-            const scoreB = document.getElementById('scoreB').innerText;
-            
-            let reportContent = `
-                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; text-align: left;">
-                    <h2 style="text-align: center; color: #000;">RAPPORT OFFICIEL - LPA PRO</h2>
-                    <hr>
-                    <div style="display: flex; justify-content: space-around; font-size: 24px; font-weight: bold; margin: 20px 0;">
-                        <span>ÉQUIPE A: ${scoreA}</span>
-                        <span>VS</span>
-                        <span>ÉQUIPE B: ${scoreB}</span>
-                    </div>
-                    <h4>ÉVÉNEMENTS DU MATCH :</h4>
-                    <ul style="list-style: none; padding: 0;">
-                        ${events.map(ev => `<li style="padding: 5px 0; border-bottom: 1px solid #eee;">[${ev.temps}] ${ev.description.replace(/<[^>]*>?/gm, '')}</li>`).join('')}
-                    </ul>
-                    <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">Généré le ${new Date().toLocaleString()}</p>
-                </div>
-            `;
-
-            const win = window.open('', '_blank');
-            win.document.write(`<html><head><title>Rapport de Match</title></head><body>${reportContent}</body></html>`);
-            win.document.close();
-            win.print();
-        }
-
-        async function updateStat(id, col, name, team) {
-            try {
-                const { data: p } = await supabaseClient.from('joueurs').select(col).eq('id', id).single();
-                const val = p[col] || 0;
-
-                if (col === 'buts') {
-                    logEvent(`${name} (${team})`, "a marqué un BUT !", "fa-futbol", "BUT");
-                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-                    Swal.fire({ title: 'BUT !!!', text: `${name} a marqué !`, icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
-                    
-                    // Sync with Matchs table
-                    await syncMatchScore();
-                }
-                if (col === 'jaunes') logEvent(name, "a reçu un carton JAUNE", "fa-square yellow-text", "CARTON");
-                if (col === 'rouges') logEvent(name, "a reçu un carton ROUGE", "fa-square red-text", "CARTON");
-
-                await supabaseClient.from('joueurs').update({ [col]: val + 1 }).eq('id', id);
-            } catch (e) { console.error("Erreur update stat :", e.message); }
-        }
-
-        async function syncMatchScore() {
-            const scoreA = parseInt(document.getElementById('scoreA').innerText);
-            const scoreB = parseInt(document.getElementById('scoreB').innerText);
-            const temps = document.getElementById('chronoDisplay').innerText;
-
-            // On cherche le match correspondant aux équipes sélectionnées
-            await supabaseClient
-                .from('matchs')
-                .update({ score_a: scoreA, score_b: scoreB, temps: temps })
-                .eq('equipe_a', currentTeamA)
-                .eq('equipe_b', currentTeamB)
-                .eq('statut', 'En cours');
-        }
-
-        async function loadHistory() {
-            const { data, error } = await supabaseClient
-                .from('evenements')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            const timeline = document.getElementById('timeline');
-            if (!data || data.length === 0) {
-                timeline.innerHTML = '<div class="timeline-empty">Aucun événement enregistré.</div>';
-                return;
-            }
-
-            timeline.innerHTML = '';
-            data.forEach(ev => {
-                timeline.innerHTML += `
-                <div class="timeline-item">
-                    <span class="time-tag">${ev.temps}</span>
-                    <i class="fa ${getIconForEvent(ev.type)} event-icon"></i>
-                    <div class="event-content">${ev.description}</div>
-                </div>`;
-            });
-        }
-
-        function getIconForEvent(type) {
-            const icons = { 'BUT': 'fa-futbol', 'CARTON': 'fa-square', 'CHANGEMENT': 'fa-exchange-alt', 'INFO': 'fa-info-circle' };
-            return icons[type] || 'fa-dot-circle';
-        }
-
-        async function logEvent(name, action, iconType, eventType = 'INFO') {
-            const temps = document.getElementById('chronoDisplay').innerText;
-            const description = `<strong>${name}</strong> ${action}`;
-            
-            await supabaseClient.from('evenements').insert([{
-                temps,
-                type: eventType,
-                description: description
-            }]);
-            
-            loadHistory();
-        }
-
-        function updateScore(players) {
-            let scoreA = 0;
-            let scoreB = 0;
-            players.forEach(p => {
-                if (p.equipe === currentTeamA) scoreA += (p.buts || 0);
-                else if (p.equipe === currentTeamB) scoreB += (p.buts || 0);
-            });
-            document.getElementById('scoreA').innerText = scoreA;
-            document.getElementById('scoreB').innerText = scoreB;
-        }
-
-        // --- FORMULAIRE ---
-        document.getElementById('playerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const player = {
-                equipe: formData.get('equipe'),
-                nom_prenom: formData.get('nomPrenom'),
-                numero: parseInt(formData.get('numero')),
-                type_equipe: formData.get('type_equipe'),
-                statut: formData.get('statut'),
-                buts: 0, jaunes: 0, rouges: 0,
-                est_sorti: false
-            };
-
-            const { error } = await supabaseClient.from('joueurs').insert([player]);
-            if (error) {
-                Swal.fire('Erreur', error.message, 'error');
-            } else {
-                Swal.fire('Succès', 'Joueur inscrit avec succès !', 'success');
-                e.target.reset();
-                showView('view-lineup');
-                logEvent(player.nom_prenom, "a rejoint l'équipe", "fa-user-plus", "INFO");
-            }
-        });
-
-        // --- REALTIME (LIVE) ---
-        function subscribeToChanges() {
-            supabaseClient
-                .channel('joueurs-changes')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'joueurs' }, payload => {
-                    loadPlayers();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'evenements' }, payload => {
-                    loadHistory();
-                })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'matchs' }, payload => {
-                    loadLiveMatches();
-                })
-                .subscribe();
-        }
-
-        // --- INITIALISATION ---
-        window.onload = () => {
-            loadPlayers();
-            subscribeToChanges(); // Activer le mode Live
-            showView('view-public');
-        };
-    </script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
