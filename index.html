@@ -69,7 +69,6 @@
         <div id="view-auth" class="registration-form" style="display: none;">
             <div class="auth-tabs">
                 <button type="button" class="auth-tab active" data-action="auth-tab" data-id="login"><i class="fa fa-sign-in-alt"></i> Connexion</button>
-                <button type="button" class="auth-tab" data-action="auth-tab" data-id="signup-org"><i class="fa fa-crown"></i> Créer un championnat</button>
                 <button type="button" class="auth-tab" data-action="auth-tab" data-id="signup-equipe"><i class="fa fa-user-plus"></i> Créer une équipe</button>
             </div>
 
@@ -79,16 +78,6 @@
                     <input type="email" name="email" placeholder="Email" required>
                     <input type="password" name="password" placeholder="Mot de passe" required>
                     <button type="submit" class="btn btn-submit">SE CONNECTER</button>
-                </form>
-            </div>
-
-            <div id="authTabSignupOrg" style="display: none;">
-                <h5 class="center-align">CRÉER UN CHAMPIONNAT</h5>
-                <form id="signupOrgForm">
-                    <input type="text" name="nomChampionnat" placeholder="Nom du championnat" required>
-                    <input type="email" name="email" placeholder="Email" required>
-                    <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
-                    <button type="submit" class="btn btn-submit">CRÉER LE CHAMPIONNAT</button>
                 </form>
             </div>
 
@@ -111,7 +100,7 @@
             <h5 class="center-align"><i class="fa fa-th-large"></i> MES ESPACES</h5>
             <div id="spacesList"></div>
 
-            <div class="match-setup-box" style="margin-top: 20px;">
+            <div id="createChampionnatSection" class="match-setup-box" style="margin-top: 20px; display: none;">
                 <h6><i class="fa fa-plus-circle"></i> CRÉER UN NOUVEAU CHAMPIONNAT</h6>
                 <form id="createChampionnatForm">
                     <input type="text" name="nomChampionnat" placeholder="Nom du championnat" required>

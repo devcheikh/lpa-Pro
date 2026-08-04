@@ -13,6 +13,10 @@ drop table if exists admins cascade;
 
 -- 2. Tables
 
+create table admins (             -- super admin global : seul rôle autorisé à créer un championnat
+  auth_user_id uuid primary key references auth.users(id) on delete cascade
+);
+
 create table championnats (       -- un championnat = un organisateur, indépendant des autres
   id uuid primary key default gen_random_uuid(),
   organisateur_id uuid not null references auth.users(id) on delete cascade,
@@ -84,14 +88,23 @@ alter table joueurs enable row level security;
 alter table matchs enable row level security;
 alter table compositions enable row level security;
 alter table evenements enable row level security;
+alter table admins enable row level security;
 
 create or replace function is_organisateur(cid uuid) returns boolean language sql stable as $$
   select exists (select 1 from championnats where id = cid and organisateur_id = auth.uid());
 $$;
 
--- championnats : lecture publique (liste découvrable), création = soi-même organisateur
+create or replace function is_super_admin() returns boolean language sql stable as $$
+  select exists (select 1 from admins where auth_user_id = auth.uid());
+$$;
+
+-- admins : chacun ne peut lire que sa propre ligne (pour savoir s'il est super admin)
+create policy "admins_select_self" on admins for select using (auth.uid() = auth_user_id);
+
+-- championnats : lecture publique (liste découvrable), création réservée au super admin
 create policy "championnats_select_public" on championnats for select using (true);
-create policy "championnats_insert_self" on championnats for insert with check (auth.uid() = organisateur_id);
+create policy "championnats_insert_admin" on championnats for insert
+  with check (is_super_admin() and auth.uid() = organisateur_id);
 create policy "championnats_update_owner" on championnats for update using (auth.uid() = organisateur_id);
 
 -- equipes : lecture publique, création = son propre compte, validation = organisateur du championnat concerné
@@ -134,5 +147,6 @@ create policy "evenements_write_organisateur" on evenements for all using (
 -- 4. Realtime
 alter publication supabase_realtime add table championnats, equipes, joueurs, matchs, compositions, evenements;
 
--- Aucun bootstrap manuel nécessaire : n'importe qui peut s'inscrire et créer son propre
--- championnat (il en devient automatiquement l'organisateur via championnats.organisateur_id).
+-- 5. Bootstrap du super admin (à faire une fois, manuellement) :
+--    1) Authentication → Add user (email + mot de passe)
+--    2) insert into admins (auth_user_id) values ('<uuid copié depuis Authentication>');

@@ -1,6 +1,6 @@
 // --- ÉTAT GLOBAL ---
 let currentSession = null;
-let myMemberships = { organises: [], equipes: [] };
+let myMemberships = { organises: [], equipes: [], isSuperAdmin: false };
 let currentChampionnatId = null;
 let currentChampionnat = null;
 let currentRole = null; // null | { type: 'organisateur', championnat } | { type: 'equipe', equipe }
@@ -117,7 +117,6 @@ function showView(viewId) {
 
 function showAuthTab(tab) {
     document.getElementById('authTabLogin').style.display = tab === 'login' ? 'block' : 'none';
-    document.getElementById('authTabSignupOrg').style.display = tab === 'signup-org' ? 'block' : 'none';
     document.getElementById('authTabSignupEquipe').style.display = tab === 'signup-equipe' ? 'block' : 'none';
     document.querySelectorAll('.auth-tab').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.id === tab);
@@ -212,22 +211,6 @@ async function handleLogin(e) {
     }
 }
 
-async function handleSignupOrg(e) {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    try {
-        const result = await signUpOrganisateur(formData.get('email'), formData.get('password'), formData.get('nomChampionnat'));
-        e.target.reset();
-        if (result.session) {
-            Swal.fire('Championnat créé', "Vous en êtes l'organisateur.", 'success');
-        } else {
-            Swal.fire('Compte créé', 'Vérifiez votre email pour confirmer votre compte, puis connectez-vous.', 'info');
-        }
-    } catch (err) {
-        notifyError('Erreur création du championnat', err);
-    }
-}
-
 async function handleSignup(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -257,7 +240,7 @@ async function handleLogout() {
         currentChampionnatId = null;
         currentChampionnat = null;
         currentRole = null;
-        myMemberships = { organises: [], equipes: [] };
+        myMemberships = { organises: [], equipes: [], isSuperAdmin: false };
         localStorage.removeItem('lpa_currentMatchId');
         localStorage.removeItem('lpa_currentChampionnatId');
         renderNav();
@@ -294,6 +277,8 @@ async function loadSpacesView() {
         showView('view-auth');
         return;
     }
+    document.getElementById('createChampionnatSection').style.display = myMemberships.isSuperAdmin ? 'block' : 'none';
+
     const container = document.getElementById('spacesList');
     try {
         const allChamps = await fetchChampionnats();
@@ -952,7 +937,6 @@ function bindEvents() {
     document.getElementById('matchDuration').value = matchDuration;
 
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
-    document.getElementById('signupOrgForm').addEventListener('submit', handleSignupOrg);
     document.getElementById('signupForm').addEventListener('submit', handleSignup);
     document.getElementById('createChampionnatForm').addEventListener('submit', handleCreateChampionnat);
     document.getElementById('addPlayerForm').addEventListener('submit', handleAddPlayer);
@@ -1079,7 +1063,7 @@ window.onload = async () => {
                 notifyError('Erreur chargement de vos espaces', e);
             }
         } else {
-            myMemberships = { organises: [], equipes: [] };
+            myMemberships = { organises: [], equipes: [], isSuperAdmin: false };
         }
 
         computeCurrentRole();

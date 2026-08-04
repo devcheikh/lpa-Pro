@@ -32,21 +32,6 @@ async function signUpEquipe(email, password, nomEquipe, championnatId) {
     return data;
 }
 
-async function signUpOrganisateur(email, password, nomChampionnat) {
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
-    if (error) throw error;
-
-    if (data.session) {
-        await createChampionnatRow(data.user.id, nomChampionnat);
-    } else if (data.user) {
-        localStorage.setItem('lpa_pending_signup', JSON.stringify({
-            uid: data.user.id, kind: 'championnat', nom: nomChampionnat
-        }));
-    }
-
-    return data;
-}
-
 async function completePendingSignup(session) {
     const raw = localStorage.getItem('lpa_pending_signup');
     if (!raw || !session) return;
@@ -63,8 +48,6 @@ async function completePendingSignup(session) {
     try {
         if (pending.kind === 'equipe') {
             await createEquipeRow(session.user.id, pending.championnatId, pending.nom);
-        } else if (pending.kind === 'championnat') {
-            await createChampionnatRow(session.user.id, pending.nom);
         }
     } finally {
         localStorage.removeItem('lpa_pending_signup');
@@ -89,14 +72,15 @@ async function getSession() {
 }
 
 async function resolveMemberships(session) {
-    if (!session) return { organises: [], equipes: [] };
+    if (!session) return { organises: [], equipes: [], isSuperAdmin: false };
 
-    const [{ data: organises }, { data: equipes }] = await Promise.all([
+    const [{ data: adminRow }, { data: organises }, { data: equipes }] = await Promise.all([
+        supabaseClient.from('admins').select('auth_user_id').eq('auth_user_id', session.user.id).maybeSingle(),
         supabaseClient.from('championnats').select('*').eq('organisateur_id', session.user.id),
         supabaseClient.from('equipes').select('*').eq('auth_user_id', session.user.id)
     ]);
 
-    return { organises: organises || [], equipes: equipes || [] };
+    return { organises: organises || [], equipes: equipes || [], isSuperAdmin: !!adminRow };
 }
 
 function onAuthChange(callback) {
