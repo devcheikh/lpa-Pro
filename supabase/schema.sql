@@ -1,6 +1,6 @@
--- LPA PRO — schéma championnat (comptes équipe + organisateur)
--- À coller une seule fois dans Supabase Dashboard → SQL Editor → Run.
--- ATTENTION : supprime les données existantes (joueurs, matchs, historique de test).
+-- LPA PRO — schéma multi-championnats
+-- À coller dans Supabase Dashboard → SQL Editor → Run.
+-- ATTENTION : supprime les données existantes.
 
 -- 1. Repartir de zéro
 drop table if exists compositions cascade;
@@ -8,20 +8,27 @@ drop table if exists evenements cascade;
 drop table if exists matchs cascade;
 drop table if exists joueurs cascade;
 drop table if exists equipes cascade;
+drop table if exists championnats cascade;
 drop table if exists admins cascade;
 
 -- 2. Tables
 
-create table equipes (
+create table championnats (       -- un championnat = un organisateur, indépendant des autres
   id uuid primary key default gen_random_uuid(),
-  auth_user_id uuid unique references auth.users(id) on delete cascade,
-  nom text not null unique,
-  statut text not null default 'en_attente' check (statut in ('en_attente','validee')),
+  organisateur_id uuid not null references auth.users(id) on delete cascade,
+  nom text not null,
   created_at timestamptz not null default now()
 );
 
-create table admins (
-  auth_user_id uuid primary key references auth.users(id) on delete cascade
+create table equipes (
+  id uuid primary key default gen_random_uuid(),
+  championnat_id uuid not null references championnats(id) on delete cascade,
+  auth_user_id uuid not null references auth.users(id) on delete cascade,
+  nom text not null,
+  statut text not null default 'en_attente' check (statut in ('en_attente','validee')),
+  created_at timestamptz not null default now(),
+  unique (championnat_id, nom),
+  unique (championnat_id, auth_user_id)
 );
 
 create table joueurs (          -- effectif permanent d'une équipe
@@ -33,12 +40,14 @@ create table joueurs (          -- effectif permanent d'une équipe
   created_at timestamptz not null default now()
 );
 
-create table matchs (            -- fixtures créées par l'organisateur
+create table matchs (            -- fixtures créées par l'organisateur d'un championnat
   id uuid primary key default gen_random_uuid(),
+  championnat_id uuid not null references championnats(id) on delete cascade,
   equipe_a_id uuid not null references equipes(id),
   equipe_b_id uuid not null references equipes(id),
   date_heure timestamptz,
-  statut text not null default 'a_venir' check (statut in ('a_venir','en_cours','termine')),
+  statut text not null default 'a_venir' check (statut in ('a_venir','en_cours','mi-temps','termine')),
+  periode int not null default 1,
   score_a int not null default 0,
   score_b int not null default 0,
   temps text not null default '00:00',
@@ -69,25 +78,27 @@ create table evenements (
 
 -- 3. Row Level Security
 
+alter table championnats enable row level security;
 alter table equipes enable row level security;
-alter table admins enable row level security;
 alter table joueurs enable row level security;
 alter table matchs enable row level security;
 alter table compositions enable row level security;
 alter table evenements enable row level security;
 
-create or replace function is_admin() returns boolean language sql stable as $$
-  select exists (select 1 from admins where auth_user_id = auth.uid());
+create or replace function is_organisateur(cid uuid) returns boolean language sql stable as $$
+  select exists (select 1 from championnats where id = cid and organisateur_id = auth.uid());
 $$;
 
--- equipes : lecture publique, création = son propre compte, validation = admin
+-- championnats : lecture publique (liste découvrable), création = soi-même organisateur
+create policy "championnats_select_public" on championnats for select using (true);
+create policy "championnats_insert_self" on championnats for insert with check (auth.uid() = organisateur_id);
+create policy "championnats_update_owner" on championnats for update using (auth.uid() = organisateur_id);
+
+-- equipes : lecture publique, création = son propre compte, validation = organisateur du championnat concerné
 create policy "equipes_select_public" on equipes for select using (true);
 create policy "equipes_insert_self" on equipes for insert with check (auth.uid() = auth_user_id);
-create policy "equipes_update_admin_or_self" on equipes for update
-  using (is_admin() or auth.uid() = auth_user_id);
-
--- admins : chacun ne peut lire que sa propre ligne (pour savoir s'il est admin)
-create policy "admins_select_self" on admins for select using (auth.uid() = auth_user_id);
+create policy "equipes_update_organisateur_or_self" on equipes for update
+  using (is_organisateur(championnat_id) or auth.uid() = auth_user_id);
 
 -- joueurs (effectif) : lecture publique, écriture réservée à l'équipe propriétaire
 create policy "joueurs_select_public" on joueurs for select using (true);
@@ -97,25 +108,31 @@ create policy "joueurs_write_owner" on joueurs for all using (
   exists (select 1 from equipes e where e.id = joueurs.equipe_id and e.auth_user_id = auth.uid())
 );
 
--- matchs : lecture publique, écriture réservée à l'admin
+-- matchs : lecture publique, écriture réservée à l'organisateur du championnat concerné
 create policy "matchs_select_public" on matchs for select using (true);
-create policy "matchs_write_admin" on matchs for all using (is_admin()) with check (is_admin());
+create policy "matchs_write_organisateur" on matchs for all
+  using (is_organisateur(championnat_id)) with check (is_organisateur(championnat_id));
 
--- compositions : lecture publique, écriture par l'équipe propriétaire (avant match) ou l'admin (stats live)
+-- compositions : lecture publique, écriture par l'équipe propriétaire ou l'organisateur du championnat du match
 create policy "compositions_select_public" on compositions for select using (true);
-create policy "compositions_write_owner_or_admin" on compositions for all using (
-  is_admin() or exists (select 1 from equipes e where e.id = compositions.equipe_id and e.auth_user_id = auth.uid())
+create policy "compositions_write_owner_or_organisateur" on compositions for all using (
+  exists (select 1 from equipes e where e.id = compositions.equipe_id and e.auth_user_id = auth.uid())
+  or exists (select 1 from matchs m where m.id = compositions.match_id and is_organisateur(m.championnat_id))
 ) with check (
-  is_admin() or exists (select 1 from equipes e where e.id = compositions.equipe_id and e.auth_user_id = auth.uid())
+  exists (select 1 from equipes e where e.id = compositions.equipe_id and e.auth_user_id = auth.uid())
+  or exists (select 1 from matchs m where m.id = compositions.match_id and is_organisateur(m.championnat_id))
 );
 
--- evenements : lecture publique, écriture réservée à l'admin
+-- evenements : lecture publique, écriture réservée à l'organisateur du championnat du match
 create policy "evenements_select_public" on evenements for select using (true);
-create policy "evenements_write_admin" on evenements for all using (is_admin()) with check (is_admin());
+create policy "evenements_write_organisateur" on evenements for all using (
+  exists (select 1 from matchs m where m.id = evenements.match_id and is_organisateur(m.championnat_id))
+) with check (
+  exists (select 1 from matchs m where m.id = evenements.match_id and is_organisateur(m.championnat_id))
+);
 
--- 4. Realtime : republier les tables recréées (nécessaire car DROP les retire de la publication)
-alter publication supabase_realtime add table equipes, joueurs, matchs, compositions, evenements;
+-- 4. Realtime
+alter publication supabase_realtime add table championnats, equipes, joueurs, matchs, compositions, evenements;
 
--- 5. Bootstrap du premier admin (à faire une fois, manuellement) :
---    1) Authentication → Add user (email + mot de passe de l'organisateur)
---    2) insert into admins (auth_user_id) values ('<uuid copié depuis Authentication>');
+-- Aucun bootstrap manuel nécessaire : n'importe qui peut s'inscrire et créer son propre
+-- championnat (il en devient automatiquement l'organisateur via championnats.organisateur_id).

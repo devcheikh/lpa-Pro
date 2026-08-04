@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lpapro-v3';
+const CACHE_NAME = 'lpapro-v4';
 const assets = [
   './',
   './index.html',

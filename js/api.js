@@ -5,15 +5,39 @@ const SUPABASE_KEY = 'sb_publishable_4lUnrZT8akVxsr3PDnOCAA_gmam4b_X';
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- ÉQUIPES ---
-async function fetchAllEquipes() {
-    const { data, error } = await supabaseClient.from('equipes').select('*').order('nom', { ascending: true });
+// --- CHAMPIONNATS ---
+async function fetchChampionnats() {
+    const { data, error } = await supabaseClient
+        .from('championnats')
+        .select('*')
+        .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
 }
 
-async function fetchEquipesEnAttente() {
-    const { data, error } = await supabaseClient.from('equipes').select('*').eq('statut', 'en_attente');
+async function fetchChampionnatById(championnatId) {
+    const { data, error } = await supabaseClient.from('championnats').select('*').eq('id', championnatId).single();
+    if (error) throw error;
+    return data;
+}
+
+// --- ÉQUIPES ---
+async function fetchAllEquipes(championnatId) {
+    const { data, error } = await supabaseClient
+        .from('equipes')
+        .select('*')
+        .eq('championnat_id', championnatId)
+        .order('nom', { ascending: true });
+    if (error) throw error;
+    return data || [];
+}
+
+async function fetchEquipesEnAttente(championnatId) {
+    const { data, error } = await supabaseClient
+        .from('equipes')
+        .select('*')
+        .eq('championnat_id', championnatId)
+        .eq('statut', 'en_attente');
     if (error) throw error;
     return data || [];
 }
@@ -57,10 +81,11 @@ async function fetchMatchsEquipe(equipeId) {
     return data || [];
 }
 
-async function fetchMatchsAll() {
+async function fetchMatchsAll(championnatId) {
     const { data, error } = await supabaseClient
         .from('matchs')
         .select('*')
+        .eq('championnat_id', championnatId)
         .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
@@ -72,10 +97,10 @@ async function fetchMatchById(matchId) {
     return data;
 }
 
-async function creerMatch(equipeAId, equipeBId, dateHeure) {
+async function creerMatch(championnatId, equipeAId, equipeBId, dateHeure) {
     const { error } = await supabaseClient
         .from('matchs')
-        .insert([{ equipe_a_id: equipeAId, equipe_b_id: equipeBId, date_heure: dateHeure || null }]);
+        .insert([{ championnat_id: championnatId, equipe_a_id: equipeAId, equipe_b_id: equipeBId, date_heure: dateHeure || null }]);
     if (error) throw error;
 }
 
@@ -84,10 +109,16 @@ async function updateMatchStatut(matchId, statut) {
     if (error) throw error;
 }
 
-async function fetchLiveMatches() {
+async function updateMatchPeriode(matchId, periode) {
+    const { error } = await supabaseClient.from('matchs').update({ periode }).eq('id', matchId);
+    if (error) throw error;
+}
+
+async function fetchLiveMatches(championnatId) {
     const { data, error } = await supabaseClient
         .from('matchs')
         .select('*')
+        .eq('championnat_id', championnatId)
         .eq('statut', 'en_cours')
         .order('created_at', { ascending: false });
     if (error) throw error;
@@ -171,6 +202,7 @@ function subscribeGlobal() {
         .channel('global-changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'matchs' }, () => onMatchsRealtimeChange())
         .on('postgres_changes', { event: '*', schema: 'public', table: 'equipes' }, () => onEquipesRealtimeChange())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'championnats' }, () => onChampionnatsRealtimeChange())
         .subscribe();
 }
 

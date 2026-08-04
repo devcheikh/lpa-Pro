@@ -49,6 +49,14 @@
     </nav>
 
     <div id="app" class="container">
+        <!-- VUE ACCUEIL (LISTE DES CHAMPIONNATS) -->
+        <div id="view-home" class="live-multiplex" style="display: none;">
+            <h5 class="center-align"><i class="fa fa-trophy"></i> CHAMPIONNATS</h5>
+            <div id="championnatsList" class="live-grid">
+                <div class="timeline-empty">Chargement des championnats...</div>
+            </div>
+        </div>
+
         <!-- VUE MULTIPLEX (LIVE MATCHES) -->
         <div id="view-live" class="live-multiplex" style="display: none;">
             <h5 class="center-align"><i class="fa fa-broadcast-tower"></i> MATCHS EN DIRECT</h5>
@@ -57,15 +65,16 @@
             </div>
         </div>
 
-        <!-- VUE CONNEXION / INSCRIPTION ÉQUIPE -->
+        <!-- VUE CONNEXION / INSCRIPTION -->
         <div id="view-auth" class="registration-form" style="display: none;">
             <div class="auth-tabs">
                 <button type="button" class="auth-tab active" data-action="auth-tab" data-id="login"><i class="fa fa-sign-in-alt"></i> Connexion</button>
-                <button type="button" class="auth-tab" data-action="auth-tab" data-id="signup"><i class="fa fa-user-plus"></i> Créer un compte</button>
+                <button type="button" class="auth-tab" data-action="auth-tab" data-id="signup-org"><i class="fa fa-crown"></i> Créer un championnat</button>
+                <button type="button" class="auth-tab" data-action="auth-tab" data-id="signup-equipe"><i class="fa fa-user-plus"></i> Créer une équipe</button>
             </div>
 
             <div id="authTabLogin">
-                <h5 class="center-align">CONNEXION ÉQUIPE / ORGANISATEUR</h5>
+                <h5 class="center-align">CONNEXION</h5>
                 <form id="loginForm">
                     <input type="email" name="email" placeholder="Email" required>
                     <input type="password" name="password" placeholder="Mot de passe" required>
@@ -73,13 +82,40 @@
                 </form>
             </div>
 
-            <div id="authTabSignup" style="display: none;">
+            <div id="authTabSignupOrg" style="display: none;">
+                <h5 class="center-align">CRÉER UN CHAMPIONNAT</h5>
+                <form id="signupOrgForm">
+                    <input type="text" name="nomChampionnat" placeholder="Nom du championnat" required>
+                    <input type="email" name="email" placeholder="Email" required>
+                    <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
+                    <button type="submit" class="btn btn-submit">CRÉER LE CHAMPIONNAT</button>
+                </form>
+            </div>
+
+            <div id="authTabSignupEquipe" style="display: none;">
                 <h5 class="center-align">CRÉER UN COMPTE ÉQUIPE</h5>
                 <form id="signupForm">
+                    <select name="championnatId" id="signupChampionnatSelect" class="browser-default" required>
+                        <option value="">Choisir le championnat à rejoindre</option>
+                    </select>
                     <input type="text" name="nomEquipe" placeholder="Nom de l'Académie" required>
                     <input type="email" name="email" placeholder="Email" required>
                     <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" required minlength="6">
                     <button type="submit" class="btn btn-submit">CRÉER LE COMPTE</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- VUE MES ESPACES -->
+        <div id="view-spaces" class="player-management" style="display: none;">
+            <h5 class="center-align"><i class="fa fa-th-large"></i> MES ESPACES</h5>
+            <div id="spacesList"></div>
+
+            <div class="match-setup-box" style="margin-top: 20px;">
+                <h6><i class="fa fa-plus-circle"></i> CRÉER UN NOUVEAU CHAMPIONNAT</h6>
+                <form id="createChampionnatForm">
+                    <input type="text" name="nomChampionnat" placeholder="Nom du championnat" required>
+                    <button type="submit" class="btn btn-submit">CRÉER</button>
                 </form>
             </div>
         </div>
@@ -104,6 +140,10 @@
 
         <!-- VUE ORGANISATEUR -->
         <div id="view-organisateur" class="player-management" style="display: none;">
+            <div class="match-setup-box">
+                <h6><i class="fa fa-trophy"></i> <span id="organisateurChampionnatLabel">CHAMPIONNAT</span></h6>
+            </div>
+
             <h6 class="team-a-title center-align"><i class="fa fa-hourglass-half"></i> ÉQUIPES EN ATTENTE DE VALIDATION</h6>
             <div id="pendingTeamsList"></div>
 

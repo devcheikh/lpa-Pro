@@ -1,6 +1,9 @@
 // --- ÉTAT GLOBAL ---
 let currentSession = null;
-let currentRole = null; // null | { type: 'admin' } | { type: 'equipe', equipe }
+let myMemberships = { organises: [], equipes: [] };
+let currentChampionnatId = null;
+let currentChampionnat = null;
+let currentRole = null; // null | { type: 'organisateur', championnat } | { type: 'equipe', equipe }
 let allEquipes = [];
 let currentMatchId = null;
 let currentMatch = null;
@@ -8,7 +11,8 @@ let currentMatch = null;
 let chronoInterval;
 let seconds = 0;
 let isRunning = false;
-let matchDuration = 90;
+let matchDuration = parseInt(localStorage.getItem('lpa_matchDuration'), 10) || 90;
+let currentPeriode = 1;
 
 // --- HELPERS ---
 function nameForEquipe(equipeId) {
@@ -17,32 +21,72 @@ function nameForEquipe(equipeId) {
 }
 
 async function refreshEquipesCache() {
+    if (!currentChampionnatId) {
+        allEquipes = [];
+        return;
+    }
     try {
-        allEquipes = await fetchAllEquipes();
+        allEquipes = await fetchAllEquipes(currentChampionnatId);
     } catch (e) {
         notifyError('Erreur chargement des équipes', e);
     }
 }
 
+function computeCurrentRole() {
+    if (!currentChampionnatId) {
+        currentRole = null;
+        return;
+    }
+    const organise = myMemberships.organises.find((c) => c.id === currentChampionnatId);
+    if (organise) {
+        currentRole = { type: 'organisateur', championnat: organise };
+        return;
+    }
+    const equipe = myMemberships.equipes.find((e) => e.championnat_id === currentChampionnatId);
+    if (equipe) {
+        currentRole = { type: 'equipe', equipe };
+        return;
+    }
+    currentRole = null;
+}
+
+async function selectChampionnat(championnatId) {
+    currentChampionnatId = championnatId;
+    localStorage.setItem('lpa_currentChampionnatId', championnatId);
+    computeCurrentRole();
+    renderNav();
+
+    try {
+        currentChampionnat = await fetchChampionnatById(championnatId);
+    } catch (e) {
+        notifyError('Erreur chargement du championnat', e);
+    }
+    await refreshEquipesCache();
+}
+
 // --- NAVIGATION ---
 function renderNav() {
     const tabs = [
+        { id: 'view-home', icon: 'fa-trophy', label: 'Accueil' },
         { id: 'view-live', icon: 'fa-broadcast-tower', label: 'Multiplex' },
         { id: 'view-lineup', icon: 'fa-list-ol', label: 'Composition' },
         { id: 'view-history', icon: 'fa-history', label: 'Historique' }
     ];
 
-    if (!currentRole) {
+    if (!currentSession) {
         tabs.push({ id: 'view-auth', icon: 'fa-sign-in-alt', label: 'Connexion' });
-    } else if (currentRole.type === 'equipe') {
-        tabs.push({ id: 'view-team', icon: 'fa-users-cog', label: 'Mon Équipe' });
-    } else if (currentRole.type === 'admin') {
-        tabs.push({ id: 'view-organisateur', icon: 'fa-crown', label: 'Organisateur' });
-        tabs.push({ id: 'view-admin', icon: 'fa-satellite-dish', label: 'Direct' });
+    } else {
+        tabs.push({ id: 'view-spaces', icon: 'fa-th-large', label: 'Mes espaces' });
+        if (currentRole?.type === 'equipe') {
+            tabs.push({ id: 'view-team', icon: 'fa-users-cog', label: 'Mon Équipe' });
+        } else if (currentRole?.type === 'organisateur') {
+            tabs.push({ id: 'view-organisateur', icon: 'fa-crown', label: 'Organisateur' });
+            tabs.push({ id: 'view-admin', icon: 'fa-satellite-dish', label: 'Direct' });
+        }
     }
 
     const tabsHtml = tabs.map((t) => `<a href="#" data-view="${t.id}" title="${escapeHtml(t.label)}"><i class="fa ${t.icon}"></i></a>`).join('');
-    const logoutHtml = currentRole ? '<a href="#" id="logoutTab" title="Déconnexion"><i class="fa fa-sign-out-alt"></i></a>' : '';
+    const logoutHtml = currentSession ? '<a href="#" id="logoutTab" title="Déconnexion"><i class="fa fa-sign-out-alt"></i></a>' : '';
 
     document.getElementById('navTabs').innerHTML = tabsHtml + logoutHtml;
 
@@ -60,9 +104,11 @@ function showView(viewId) {
         a.classList.toggle('active', a.dataset.view === viewId);
     });
 
-    if (viewId === 'view-live') loadLiveMatches();
+    if (viewId === 'view-home') loadHomeView();
+    else if (viewId === 'view-live') loadLiveMatches();
     else if (viewId === 'view-lineup') loadLineupView();
     else if (viewId === 'view-history') loadHistoryView();
+    else if (viewId === 'view-spaces') loadSpacesView();
     else if (viewId === 'view-team') loadTeamSpace();
     else if (viewId === 'view-organisateur') loadOrganisateurSpace();
     else if (viewId === 'view-admin') loadDirectView();
@@ -71,10 +117,23 @@ function showView(viewId) {
 
 function showAuthTab(tab) {
     document.getElementById('authTabLogin').style.display = tab === 'login' ? 'block' : 'none';
-    document.getElementById('authTabSignup').style.display = tab === 'signup' ? 'block' : 'none';
+    document.getElementById('authTabSignupOrg').style.display = tab === 'signup-org' ? 'block' : 'none';
+    document.getElementById('authTabSignupEquipe').style.display = tab === 'signup-equipe' ? 'block' : 'none';
     document.querySelectorAll('.auth-tab').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.id === tab);
     });
+    if (tab === 'signup-equipe') loadSignupChampionnatSelect();
+}
+
+async function loadSignupChampionnatSelect() {
+    const select = document.getElementById('signupChampionnatSelect');
+    try {
+        const championnats = await fetchChampionnats();
+        select.innerHTML = '<option value="">Choisir le championnat à rejoindre</option>' +
+            championnats.map((c) => `<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('');
+    } catch (e) {
+        notifyError('Erreur chargement des championnats', e);
+    }
 }
 
 // --- CHRONO ---
@@ -122,12 +181,22 @@ function updateChronoDisplay() {
 }
 
 function checkMatchEnd() {
-    if (isRunning && seconds >= matchDuration * 60) {
-        stopChronoInterval();
-        syncMatchScoreFromDom();
-        logEvent('Match', 'Fin du temps réglementaire', 'fa-flag-checkered', 'INFO');
-        Swal.fire({ title: 'Fin du match', text: `Temps réglementaire (${matchDuration} min) écoulé.`, icon: 'info' });
+    const halfSeconds = Math.round((matchDuration / 2) * 60);
+    if (!isRunning || seconds < halfSeconds) return;
+
+    stopChronoInterval();
+    syncMatchScoreFromDom();
+
+    if (currentPeriode === 1) {
+        updateMatchStatut(currentMatchId, 'mi-temps').catch((e) => notifyError('Erreur passage en mi-temps', e));
+        logEvent('Match', 'Fin de la 1ère mi-temps', 'fa-hourglass-half', 'INFO');
+        Swal.fire({ title: 'Mi-temps', text: 'Fin de la 1ère mi-temps.', icon: 'info' });
+    } else {
+        updateMatchStatut(currentMatchId, 'termine').catch((e) => notifyError('Erreur fin de match', e));
+        logEvent('Match', 'Fin du match (fin de la 2ème mi-temps)', 'fa-flag-checkered', 'INFO');
+        Swal.fire({ title: 'Fin du match', text: 'Fin de la 2ème mi-temps — match terminé.', icon: 'info' });
     }
+    loadDirectView();
 }
 
 // --- AUTHENTIFICATION ---
@@ -143,11 +212,32 @@ async function handleLogin(e) {
     }
 }
 
-async function handleSignup(e) {
+async function handleSignupOrg(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
     try {
-        const result = await signUpEquipe(formData.get('email'), formData.get('password'), formData.get('nomEquipe'));
+        const result = await signUpOrganisateur(formData.get('email'), formData.get('password'), formData.get('nomChampionnat'));
+        e.target.reset();
+        if (result.session) {
+            Swal.fire('Championnat créé', "Vous en êtes l'organisateur.", 'success');
+        } else {
+            Swal.fire('Compte créé', 'Vérifiez votre email pour confirmer votre compte, puis connectez-vous.', 'info');
+        }
+    } catch (err) {
+        notifyError('Erreur création du championnat', err);
+    }
+}
+
+async function handleSignup(e) {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const championnatId = formData.get('championnatId');
+    if (!championnatId) {
+        Swal.fire('Erreur', 'Choisissez un championnat.', 'error');
+        return;
+    }
+    try {
+        const result = await signUpEquipe(formData.get('email'), formData.get('password'), formData.get('nomEquipe'), championnatId);
         e.target.reset();
         if (result.session) {
             Swal.fire('Compte créé', "Votre équipe est en attente de validation par l'organisateur.", 'success');
@@ -164,10 +254,83 @@ async function handleLogout() {
         await signOut();
         currentMatchId = null;
         currentMatch = null;
+        currentChampionnatId = null;
+        currentChampionnat = null;
+        currentRole = null;
+        myMemberships = { organises: [], equipes: [] };
         localStorage.removeItem('lpa_currentMatchId');
-        showView('view-live');
+        localStorage.removeItem('lpa_currentChampionnatId');
+        renderNav();
+        showView('view-home');
     } catch (err) {
         notifyError('Erreur déconnexion', err);
+    }
+}
+
+// --- ACCUEIL (LISTE DES CHAMPIONNATS) ---
+async function loadHomeView() {
+    const container = document.getElementById('championnatsList');
+    try {
+        const championnats = await fetchChampionnats();
+        if (!championnats.length) {
+            container.innerHTML = '<div class="timeline-empty">Aucun championnat pour le moment. Créez le vôtre depuis Connexion.</div>';
+            return;
+        }
+        container.innerHTML = championnats.map((c) => `
+            <div class="live-match-card" data-action="enter-championnat" data-id="${c.id}" style="cursor:pointer;">
+                <h6 style="font-family: var(--oswald); text-transform: uppercase; margin: 0 0 10px; color: var(--primary);">${escapeHtml(c.nom)}</h6>
+                <div class="match-footer" style="border-top:none; padding-top:0;">
+                    <span class="chrono-mini"><i class="fa fa-arrow-right"></i> Entrer</span>
+                </div>
+            </div>`).join('');
+    } catch (e) {
+        notifyError('Erreur chargement des championnats', e);
+    }
+}
+
+// --- MES ESPACES ---
+async function loadSpacesView() {
+    if (!currentSession) {
+        showView('view-auth');
+        return;
+    }
+    const container = document.getElementById('spacesList');
+    try {
+        const allChamps = await fetchChampionnats();
+        const champNom = (id) => allChamps.find((c) => c.id === id)?.nom || '—';
+
+        const items = [
+            ...myMemberships.organises.map((c) => ({ id: c.id, label: `Organisateur — ${c.nom}` })),
+            ...myMemberships.equipes.map((eq) => ({ id: eq.championnat_id, label: `Équipe "${eq.nom}" — ${champNom(eq.championnat_id)}` }))
+        ];
+
+        if (!items.length) {
+            container.innerHTML = '<div class="timeline-empty">Aucun espace pour le moment.</div>';
+            return;
+        }
+
+        container.innerHTML = items.map((it) => `
+            <div class="lineup-item">
+                <span class="player-name-small" style="flex:1">${escapeHtml(it.label)}</span>
+                <button class="btn btn-small green" data-action="enter-championnat" data-id="${it.id}">Entrer</button>
+            </div>`).join('');
+    } catch (e) {
+        notifyError('Erreur chargement de vos espaces', e);
+    }
+}
+
+async function handleCreateChampionnat(e) {
+    e.preventDefault();
+    if (!currentSession) return;
+    const formData = new FormData(e.target);
+    try {
+        await createChampionnatRow(currentSession.user.id, formData.get('nomChampionnat'));
+        e.target.reset();
+        myMemberships = await resolveMemberships(currentSession);
+        Swal.fire('Championnat créé', '', 'success');
+        loadSpacesView();
+    } catch (err) {
+        notifyError('Erreur création du championnat', err);
     }
 }
 
@@ -179,7 +342,7 @@ async function loadTeamSpace() {
     }
     const equipe = currentRole.equipe;
     document.getElementById('teamStatusLabel').textContent =
-        `${equipe.nom} — ${equipe.statut === 'validee' ? 'Compte validé' : "En attente de validation par l'organisateur"}`;
+        `${equipe.nom} (${currentChampionnat?.nom || '—'}) — ${equipe.statut === 'validee' ? 'Compte validé' : "En attente de validation par l'organisateur"}`;
 
     try {
         const [roster, matches] = await Promise.all([fetchRoster(equipe.id), fetchMatchsEquipe(equipe.id)]);
@@ -336,12 +499,17 @@ async function handleAddPlayer(e) {
 
 // --- ORGANISATEUR ---
 async function loadOrganisateurSpace() {
-    if (!currentRole || currentRole.type !== 'admin') {
+    if (!currentRole || currentRole.type !== 'organisateur') {
         showView('view-auth');
         return;
     }
+    document.getElementById('organisateurChampionnatLabel').textContent = currentChampionnat?.nom || 'CHAMPIONNAT';
+
     try {
-        const [pending, matches] = await Promise.all([fetchEquipesEnAttente(), fetchMatchsAll()]);
+        const [pending, matches] = await Promise.all([
+            fetchEquipesEnAttente(currentChampionnatId),
+            fetchMatchsAll(currentChampionnatId)
+        ]);
         await refreshEquipesCache();
         renderPendingTeams(pending);
         renderMatchCreationSelects(allEquipes.filter((e) => e.statut === 'validee'));
@@ -395,7 +563,7 @@ async function handleCreateMatch(e) {
     }
 
     try {
-        await creerMatch(equipeA, equipeB, dateHeure ? new Date(dateHeure).toISOString() : null);
+        await creerMatch(currentChampionnatId, equipeA, equipeB, dateHeure ? new Date(dateHeure).toISOString() : null);
         Swal.fire('Match créé', '', 'success');
         e.target.reset();
         loadOrganisateurSpace();
@@ -411,6 +579,9 @@ async function selectMatch(matchId) {
     subscribeToMatch(matchId);
     try {
         currentMatch = await fetchMatchById(matchId);
+        if (currentMatch.championnat_id !== currentChampionnatId) {
+            await selectChampionnat(currentMatch.championnat_id);
+        }
         applyMatchHeader(currentMatch);
     } catch (e) {
         notifyError('Erreur chargement du match', e);
@@ -424,13 +595,18 @@ function applyMatchHeader(match) {
     document.getElementById('scoreB').innerText = match.score_b;
     document.getElementById('chronoDisplay').innerText = match.temps;
     seconds = parseChronoToSeconds(match.temps);
+    currentPeriode = match.periode || 1;
 }
 
 // --- MULTIPLEX (SPECTATEUR) ---
 async function loadLiveMatches() {
     const grid = document.getElementById('live-matches-grid');
+    if (!currentChampionnatId) {
+        grid.innerHTML = '<div class="timeline-empty">Choisissez un championnat depuis l\'Accueil.</div>';
+        return;
+    }
     try {
-        const data = await fetchLiveMatches();
+        const data = await fetchLiveMatches(currentChampionnatId);
         if (!data.length) {
             grid.innerHTML = '<div class="timeline-empty">Aucun match en cours.</div>';
             return;
@@ -513,9 +689,9 @@ function displayLineups(composition, match) {
     });
 }
 
-// --- DIRECT (ADMIN) ---
+// --- DIRECT (ORGANISATEUR) ---
 async function loadDirectView() {
-    if (!currentRole || currentRole.type !== 'admin') {
+    if (!currentRole || currentRole.type !== 'organisateur') {
         showView('view-auth');
         return;
     }
@@ -532,13 +708,22 @@ async function loadDirectView() {
         currentMatch = await fetchMatchById(currentMatchId);
         applyMatchHeader(currentMatch);
 
-        const startBtn = currentMatch.statut === 'a_venir'
-            ? `<button class="btn btn-small green" data-action="demarrer-match" data-id="${currentMatch.id}" style="margin-top:10px;">Démarrer le match</button>`
-            : '';
-        const revertBtn = currentMatch.statut === 'en_cours'
-            ? `<button class="btn btn-small grey" data-action="revert-match" data-id="${currentMatch.id}" style="margin-top:10px;"><i class="fa fa-undo"></i> Repasser à "à venir" (déverrouille la composition)</button>`
-            : '';
-        info.innerHTML = `${escapeHtml(nameForEquipe(currentMatch.equipe_a_id))} vs ${escapeHtml(nameForEquipe(currentMatch.equipe_b_id))} — ${escapeHtml(currentMatch.statut)}<br>${startBtn}${revertBtn}`;
+        let actionBtn = '';
+        if (currentMatch.statut === 'a_venir') {
+            actionBtn = `<button class="btn btn-small green" data-action="demarrer-match" data-id="${currentMatch.id}" style="margin-top:10px;">Démarrer le match</button>`;
+        } else if (currentMatch.statut === 'mi-temps') {
+            actionBtn = `<button class="btn btn-small green" data-action="demarrer-2eme-mitemps" data-id="${currentMatch.id}" style="margin-top:10px;">Démarrer la 2ème mi-temps</button>`;
+        } else if (currentMatch.statut === 'en_cours') {
+            actionBtn = `<button class="btn btn-small grey" data-action="revert-match" data-id="${currentMatch.id}" style="margin-top:10px;"><i class="fa fa-undo"></i> Repasser à "à venir" (déverrouille la composition)</button>`;
+        }
+
+        const periodeLabel = currentMatch.statut === 'termine'
+            ? 'MATCH TERMINÉ'
+            : currentMatch.statut === 'a_venir'
+                ? 'PAS ENCORE DÉMARRÉ'
+                : `${currentPeriode === 1 ? '1ÈRE' : '2ÈME'} MI-TEMPS`;
+
+        info.innerHTML = `${escapeHtml(nameForEquipe(currentMatch.equipe_a_id))} vs ${escapeHtml(nameForEquipe(currentMatch.equipe_b_id))} — ${escapeHtml(periodeLabel)}<br>${actionBtn}`;
 
         if (currentMatch.statut === 'en_cours') {
             startChronoInterval();
@@ -764,14 +949,19 @@ async function generateReport() {
 
 // --- ÉVÉNEMENTS DOM ---
 function bindEvents() {
+    document.getElementById('matchDuration').value = matchDuration;
+
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    document.getElementById('signupOrgForm').addEventListener('submit', handleSignupOrg);
     document.getElementById('signupForm').addEventListener('submit', handleSignup);
+    document.getElementById('createChampionnatForm').addEventListener('submit', handleCreateChampionnat);
     document.getElementById('addPlayerForm').addEventListener('submit', handleAddPlayer);
     document.getElementById('createMatchForm').addEventListener('submit', handleCreateMatch);
 
     document.getElementById('matchDuration').addEventListener('change', (e) => {
         const val = parseInt(e.target.value, 10);
         matchDuration = (Number.isFinite(val) && val > 0) ? val : 90;
+        localStorage.setItem('lpa_matchDuration', matchDuration);
     });
 
     document.getElementById('navTabs').addEventListener('click', (e) => {
@@ -790,6 +980,7 @@ function bindEvents() {
         else if (action === 'yellow') updateStat(id, 'jaunes', name);
         else if (action === 'sub') prepareSub(id, team, name);
         else if (action === 'auth-tab') showAuthTab(id);
+        else if (action === 'enter-championnat') { await selectChampionnat(id); showView('view-live'); }
         else if (action === 'select-match') { await selectMatch(id); showView('view-lineup'); }
         else if (action === 'piloter-match') { await selectMatch(id); showView('view-admin'); }
         else if (action === 'delete-roster') {
@@ -798,6 +989,19 @@ function bindEvents() {
             try { await validerEquipe(id); loadOrganisateurSpace(); } catch (err) { notifyError('Erreur validation équipe', err); }
         } else if (action === 'demarrer-match') {
             try { await updateMatchStatut(id, 'en_cours'); loadDirectView(); } catch (err) { notifyError('Erreur démarrage du match', err); }
+        } else if (action === 'demarrer-2eme-mitemps') {
+            try {
+                currentPeriode = 2;
+                seconds = 0;
+                updateChronoDisplay();
+                await updateMatchPeriode(id, 2);
+                await updateMatchStatut(id, 'en_cours');
+                await syncMatchScoreFromDom();
+                logEvent('Match', '2ème mi-temps commencée', 'fa-clock', 'INFO');
+                loadDirectView();
+            } catch (err) {
+                notifyError('Erreur démarrage de la 2ème mi-temps', err);
+            }
         } else if (action === 'revert-match') {
             try { await updateMatchStatut(id, 'a_venir'); loadDirectView(); } catch (err) { notifyError('Erreur lors du repassage à "à venir"', err); }
         } else if (action === 'valider-composition') {
@@ -818,13 +1022,17 @@ function bindEvents() {
 // --- REALTIME (CALLBACKS) ---
 function onMatchsRealtimeChange() {
     if (document.getElementById('view-live').style.display !== 'none') loadLiveMatches();
-    if (currentRole?.type === 'admin' && document.getElementById('view-organisateur').style.display !== 'none') loadOrganisateurSpace();
+    if (currentRole?.type === 'organisateur' && document.getElementById('view-organisateur').style.display !== 'none') loadOrganisateurSpace();
     if (currentMatchId && document.getElementById('view-admin').style.display !== 'none') loadDirectView();
 }
 
 function onEquipesRealtimeChange() {
     refreshEquipesCache();
-    if (currentRole?.type === 'admin' && document.getElementById('view-organisateur').style.display !== 'none') loadOrganisateurSpace();
+    if (currentRole?.type === 'organisateur' && document.getElementById('view-organisateur').style.display !== 'none') loadOrganisateurSpace();
+}
+
+function onChampionnatsRealtimeChange() {
+    if (document.getElementById('view-home').style.display !== 'none') loadHomeView();
 }
 
 function onCompositionsRealtimeChange() {
@@ -841,17 +1049,21 @@ function onEvenementsRealtimeChange() {
 window.onload = async () => {
     bindEvents();
     renderNav();
-    await refreshEquipesCache();
 
+    const storedChampionnatId = localStorage.getItem('lpa_currentChampionnatId');
     const storedMatchId = localStorage.getItem('lpa_currentMatchId');
+    const hadContext = !!(storedMatchId || storedChampionnatId);
+
     if (storedMatchId) {
         await selectMatch(storedMatchId);
+    } else if (storedChampionnatId) {
+        await selectChampionnat(storedChampionnatId);
     }
 
-    showView('view-live');
+    showView(hadContext ? 'view-live' : 'view-home');
     subscribeGlobal();
 
-    let matchViewRestored = false;
+    let membershipsResolved = false;
 
     onAuthChange(async (session) => {
         currentSession = session;
@@ -859,15 +1071,23 @@ window.onload = async () => {
             try {
                 await completePendingSignup(session);
             } catch (e) {
-                notifyError("Erreur finalisation de l'inscription équipe", e);
+                notifyError("Erreur finalisation de l'inscription", e);
             }
+            try {
+                myMemberships = await resolveMemberships(session);
+            } catch (e) {
+                notifyError('Erreur chargement de vos espaces', e);
+            }
+        } else {
+            myMemberships = { organises: [], equipes: [] };
         }
-        currentRole = await resolveRole(session);
+
+        computeCurrentRole();
         renderNav();
 
-        if (!matchViewRestored) {
-            matchViewRestored = true;
-            if (storedMatchId && currentRole?.type === 'admin') {
+        if (!membershipsResolved) {
+            membershipsResolved = true;
+            if (session && currentRole?.type === 'organisateur' && storedMatchId) {
                 showView('view-admin');
             }
         }
