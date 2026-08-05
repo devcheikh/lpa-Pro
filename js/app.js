@@ -716,12 +716,18 @@ async function loadDirectView() {
     }
 }
 
-function renderCompositionCard(c) {
+function renderCompositionCard(c, locked) {
     const p = c.joueurs || {};
     const isOutStyle = c.est_sorti ? 'opacity: 0.5; filter: grayscale(1);' : '';
-    const subButton = c.statut === 'Titulaire' && !c.est_sorti
+    const subButton = c.statut === 'Titulaire' && !c.est_sorti && !locked
         ? `<button class="btn-action btn-sub" data-action="sub" data-id="${c.id}" data-team="${c.equipe_id}" data-name="${escapeHtml(p.nom_prenom)}"><i class="fa fa-exchange-alt"></i></button>`
         : '';
+
+    const actions = locked
+        ? ''
+        : `<button class="btn-action btn-goal" data-action="goal" data-id="${c.id}" data-name="${escapeHtml(p.nom_prenom)}"><i class="fa fa-futbol"></i></button>
+            <button class="btn-action btn-yellow" data-action="yellow" data-id="${c.id}" data-name="${escapeHtml(p.nom_prenom)}"><i class="fa fa-square"></i></button>
+            ${subButton}`;
 
     return `
     <div class="player-card" style="${isOutStyle}">
@@ -732,9 +738,7 @@ function renderCompositionCard(c) {
             ${c.est_sorti ? '<span class="player-team">(SORTI)</span>' : ''}
         </div>
         <div class="action-overlay">
-            <button class="btn-action btn-goal" data-action="goal" data-id="${c.id}" data-name="${escapeHtml(p.nom_prenom)}"><i class="fa fa-futbol"></i></button>
-            <button class="btn-action btn-yellow" data-action="yellow" data-id="${c.id}" data-name="${escapeHtml(p.nom_prenom)}"><i class="fa fa-square"></i></button>
-            ${subButton}
+            ${actions}
         </div>
     </div>`;
 }
@@ -743,12 +747,13 @@ async function loadDirectSquads() {
     if (!currentMatchId || !currentMatch) return;
     try {
         const composition = await fetchComposition(currentMatchId);
+        const locked = currentMatch.statut === 'termine';
         const cardsA = [];
         const cardsB = [];
 
         composition.forEach((c) => {
             if (c.statut === 'Non convoque') return;
-            const card = renderCompositionCard(c);
+            const card = renderCompositionCard(c, locked);
             if (c.equipe_id === currentMatch.equipe_a_id) cardsA.push(card);
             else if (c.equipe_id === currentMatch.equipe_b_id) cardsB.push(card);
         });
