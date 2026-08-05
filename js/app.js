@@ -112,26 +112,21 @@ function showView(viewId) {
     else if (viewId === 'view-team') loadTeamSpace();
     else if (viewId === 'view-organisateur') loadOrganisateurSpace();
     else if (viewId === 'view-admin') loadDirectView();
-    else if (viewId === 'view-auth') showAuthTab('login');
+    else if (viewId === 'view-join') loadJoinView();
 }
 
-function showAuthTab(tab) {
-    document.getElementById('authTabLogin').style.display = tab === 'login' ? 'block' : 'none';
-    document.getElementById('authTabSignupEquipe').style.display = tab === 'signup-equipe' ? 'block' : 'none';
-    document.querySelectorAll('.auth-tab').forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.id === tab);
-    });
-    if (tab === 'signup-equipe') loadSignupChampionnatSelect();
-}
-
-async function loadSignupChampionnatSelect() {
-    const select = document.getElementById('signupChampionnatSelect');
+async function loadJoinView() {
+    if (!currentChampionnatId) {
+        showView('view-home');
+        return;
+    }
     try {
-        const championnats = await fetchChampionnats();
-        select.innerHTML = '<option value="">Choisir le championnat à rejoindre</option>' +
-            championnats.map((c) => `<option value="${c.id}">${escapeHtml(c.nom)}</option>`).join('');
+        currentChampionnat = (currentChampionnat && currentChampionnat.id === currentChampionnatId)
+            ? currentChampionnat
+            : await fetchChampionnatById(currentChampionnatId);
+        document.getElementById('joinChampionnatNom').textContent = currentChampionnat.nom;
     } catch (e) {
-        notifyError('Erreur chargement des championnats', e);
+        notifyError('Erreur chargement du championnat', e);
     }
 }
 
@@ -213,20 +208,20 @@ async function handleLogin(e) {
 
 async function handleSignup(e) {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const championnatId = formData.get('championnatId');
-    if (!championnatId) {
-        Swal.fire('Erreur', 'Choisissez un championnat.', 'error');
+    if (!currentChampionnatId) {
+        Swal.fire('Erreur', "Sélectionnez d'abord un championnat depuis l'Accueil.", 'error');
         return;
     }
+    const formData = new FormData(e.target);
     try {
-        const result = await signUpEquipe(formData.get('email'), formData.get('password'), formData.get('nomEquipe'), championnatId);
+        const result = await signUpEquipe(formData.get('email'), formData.get('password'), formData.get('nomEquipe'), currentChampionnatId);
         e.target.reset();
         if (result.session) {
             Swal.fire('Compte créé', "Votre équipe est en attente de validation par l'organisateur.", 'success');
         } else {
             Swal.fire('Compte créé', 'Vérifiez votre email pour confirmer votre compte, puis connectez-vous.', 'info');
         }
+        showView('view-home');
     } catch (err) {
         notifyError('Erreur inscription équipe', err);
     }
@@ -256,14 +251,15 @@ async function loadHomeView() {
     try {
         const championnats = await fetchChampionnats();
         if (!championnats.length) {
-            container.innerHTML = '<div class="timeline-empty">Aucun championnat pour le moment. Créez le vôtre depuis Connexion.</div>';
+            container.innerHTML = '<div class="timeline-empty">Aucun championnat pour le moment.</div>';
             return;
         }
         container.innerHTML = championnats.map((c) => `
-            <div class="live-match-card" data-action="enter-championnat" data-id="${c.id}" style="cursor:pointer;">
-                <h6 style="font-family: var(--oswald); text-transform: uppercase; margin: 0 0 10px; color: var(--primary);">${escapeHtml(c.nom)}</h6>
-                <div class="match-footer" style="border-top:none; padding-top:0;">
-                    <span class="chrono-mini"><i class="fa fa-arrow-right"></i> Entrer</span>
+            <div class="live-match-card">
+                <h6 style="font-family: var(--oswald); text-transform: uppercase; margin: 0 0 14px; color: var(--primary);">${escapeHtml(c.nom)}</h6>
+                <div class="match-footer" style="border-top:none; padding-top:0; display:flex; gap:8px; justify-content:center;">
+                    <button class="btn btn-small green" data-action="enter-championnat" data-id="${c.id}"><i class="fa fa-broadcast-tower"></i> Entrer</button>
+                    <button class="btn btn-small blue" data-action="join-championnat" data-id="${c.id}"><i class="fa fa-user-plus"></i> Rejoindre</button>
                 </div>
             </div>`).join('');
     } catch (e) {
@@ -963,8 +959,8 @@ function bindEvents() {
         if (action === 'goal') updateStat(id, 'buts', name);
         else if (action === 'yellow') updateStat(id, 'jaunes', name);
         else if (action === 'sub') prepareSub(id, team, name);
-        else if (action === 'auth-tab') showAuthTab(id);
         else if (action === 'enter-championnat') { await selectChampionnat(id); showView('view-live'); }
+        else if (action === 'join-championnat') { await selectChampionnat(id); showView('view-join'); }
         else if (action === 'select-match') { await selectMatch(id); showView('view-lineup'); }
         else if (action === 'piloter-match') { await selectMatch(id); showView('view-admin'); }
         else if (action === 'delete-roster') {

@@ -281,40 +281,6 @@ body {
   margin: 20px;
 }
 
-/* ONGLETS CONNEXION / CRÉATION DE COMPTE */
-.auth-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 25px;
-}
-
-.auth-tab {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-dim);
-  padding: 14px 10px;
-  border-radius: 12px;
-  font-family: var(--oswald);
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.auth-tab i {
-  margin-right: 6px;
-}
-
-.auth-tab.active {
-  background: var(--primary);
-  color: #000;
-  border-color: var(--primary);
-  font-weight: 800;
-  box-shadow: var(--glow);
-}
-
 input, select {
   background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -603,7 +569,6 @@ input, select {
   }
 
   .registration-form { margin: 12px; padding: 20px; }
-  .auth-tabs { flex-direction: column; }
 }
 
 /* TABLETTES (600px - 1023px) */
